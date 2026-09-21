@@ -11,4 +11,4 @@
 
 Ubuntu 上的 GitHub Actions 只运行 `moon fmt --check` 和 `moon check --deny-warn`。该 job 不运行 `moon test`，不加载 ONNX Runtime，也不表示 Linux native 支持。
 
-没有已登记的 macOS arm64 self-hosted runner。工作流里因此没有 macOS job，避免一条未执行的 native 检查显示为绿色。macOS 证据目前是人工远程复验，步骤见 [remote-verify.md](remote-verify.md)。在该 runner 实际跑过 native 格式、检查、构建和测试之前，本仓库不是完整发布就绪。
+`.github/workflows/macos-arm64.yml` 定义了 GitHub 托管的 macOS arm64 job，`runs-on` 为 `macos-15`。该标签在 GitHub 托管 runner 表里是 arm64，不是 `macos-15-intel`。job 会在执行时下载官方 ONNX Runtime 1.30.0 osx-arm64，并运行 `moon fmt --check`、`moon check --deny-warn` 和 `moon test --deny-warn`。这个 job 还没有在 GitHub 上执行，不是绿色。macOS 上已有的证据仍是人工远程复验，步骤见 [remote-verify.md](remote-verify.md)。在该 job 实际跑过之前，本仓库不是完整发布就绪。

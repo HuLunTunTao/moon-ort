@@ -101,7 +101,7 @@ C shim 在包构建期使用这份头文件编译。下游不安装开发头文�
 | Windows | 未支持 | 不承诺 |
 | CoreML 及其他非 CPU 提供程序 | 未支持 | 不进入 v0.1 |
 
-Ubuntu job 只运行 `moon fmt --check` 和 `moon check --deny-warn`。它不加载 ORT，绿灯也不是 Linux native 支持，不能代替 macOS arm64 上的原生运行证据。没有已登记的 macOS arm64 self-hosted runner，工作流里不放置 macOS job。在该 runner 实际跑通之前，项目不是完整发布就绪。
+Ubuntu job 只运行 `moon fmt --check` 和 `moon check --deny-warn`。它不加载 ORT，绿灯也不是 Linux native 支持，不能代替 macOS arm64 上的原生运行证据。macOS arm64 job 已写在 `.github/workflows/macos-arm64.yml`，还没有在 GitHub 上执行，因此不是绿色。见 [support.md](support.md)。在它实际跑通之前，项目不是完整发布就绪。
 
 ## 6. 所有权、释放与错误
 
@@ -180,6 +180,6 @@ v0.1 把边界定在官方 C API、CPU 和三种张量类型，是为了让普�
 仍开放的发布项：
 
 - 公开 Git 远程还不存在，`moon.mod` 的 `repository` 保持为空。
-- 没有已登记的 macOS arm64 self-hosted runner，因此没有 native CI 绿灯。
+- macOS arm64 的 GitHub Actions job 已定义，还没有在 GitHub 上执行，因此没有 native CI 绿灯。见 [support.md](support.md)。
 - MoonCakes 尚未发布，干净项目安装也尚未复验。
 - Laya 真实 I/O 仍不是公开能力。

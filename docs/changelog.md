@@ -10,5 +10,6 @@
 - 多输入、多输出的同步 `Run`
 - 可再生成的微型夹具，以及 [scenarios.md](scenarios.md) 中的三个公开场景
 - Ubuntu 上的格式与类型检查，见 `.github/workflows/static.yml`
+- 已定义、尚未在 GitHub 执行的 macOS arm64 native 测试，见 `.github/workflows/macos-arm64.yml`
 
 发布门槛里尚未勾选的项写在 [architecture.md](architecture.md) 第 12 节。Laya 不在本记录中。

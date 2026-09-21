@@ -1,0 +1,66 @@
+# macOS arm64 native 测试。本文件只定义 job，仓库还没有 GitHub remote，因此还没有在 GitHub 上执行。
+# 未执行不是绿色，也不能当作发布证据。不运行 Laya，不缓存权重或 tokenizer。
+#
+# MoonBit：https://www.moonbitlang.com/download/ （2026-09-22 读取）给出
+#   curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+# 安装脚本接受一个版本参数。docs/install.md 记录的工具链是 moon 0.1.20260915，
+# moon.mod 没有另写编译器版本，因此这里固定该版本。Darwin arm64 的安装目标是 darwin-aarch64。
+#
+# ONNX Runtime：作业执行时下载官方 osx-arm64 1.30.0 归档，不提交二进制。
+# https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-osx-arm64-1.30.0.tgz
+# THIRD_PARTY_NOTICES.md 已记录该 macOS arm64 运行时归档的 SHA-256。
+# SOURCE.md 只记录头文件哈希，这里不另造归档哈希。
+#
+# runs-on：https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+# （2026-09-22 读取）把 macos-14、macos-15、macos-latest 标为 arm64（M1）。
+# macos-15-intel 是 Intel。本 job 使用 macos-15。GitHub 托管镜像自带 cc，测试在缺少 gcc-15 时回退到 cc。
+
+name: macos-arm64
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  macos-arm64-native:
+    name: macOS arm64 native test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit 0.1.20260915
+        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260915
+
+      - name: Put moon on PATH
+        run: echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Download ONNX Runtime 1.30.0 osx-arm64
+        env:
+          LC_ALL: C
+          LANG: C
+        run: |
+          set -euo pipefail
+          archive="onnxruntime-osx-arm64-1.30.0.tgz"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/${archive}"
+          dest="${GITHUB_WORKSPACE}/.deps/onnxruntime"
+          mkdir -p "$dest"
+          curl -fsSL -o "${dest}/${archive}" "$url"
+          (
+            cd "$dest"
+            echo "6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012  ${archive}" | shasum -a 256 -c -
+            tar -xzf "$archive"
+            rm -f "$archive"
+          )
+          lib="${dest}/onnxruntime-osx-arm64-1.30.0/lib/libonnxruntime.1.30.0.dylib"
+          test -f "$lib"
+          echo "MOON_ORT_LIBRARY=${lib}" >> "$GITHUB_ENV"
+
+      - name: moon fmt --check
+        run: moon fmt --check
+
+      - name: moon check --deny-warn
+        run: moon check --deny-warn
+
+      - name: moon test --deny-warn
+        run: moon test --deny-warn

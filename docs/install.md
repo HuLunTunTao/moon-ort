@@ -6,7 +6,21 @@
 
 ## 拿到源码之后
 
-在已提交的源码树里使用 MoonBit。记录过官方运行时结果的工具链是 `moon 0.1.20260915 (2e1a46d 2026-09-15)`。
+在已提交的源码树里使用 MoonBit。记录过官方运行时结果的工具链是 `moon 0.1.20260915 (2e1a46d 2026-09-15)`。`moon.mod` 没有另写编译器版本。
+
+安装入口是 <https://www.moonbitlang.com/download/>。2026-09-22 读取该页时，Unix 安装命令是：
+
+```sh
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+```
+
+同一脚本接受一个版本参数。与上面记录的工具链对齐时使用：
+
+```sh
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260915
+```
+
+`Darwin arm64` 会安装 `darwin-aarch64` 目标。不带参数则安装脚本当时的最新版。
 
 ```sh
 moon fmt --check
