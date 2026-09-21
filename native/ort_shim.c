@@ -1,47 +1,13 @@
 #include <dlfcn.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "moonbit.h"
-#include "vendor/onnxruntime/v1.30.0/onnxruntime_c_api.h"
-
-enum {
-  MOON_ORT_OK = 0,
-  MOON_ORT_MISSING_LIBRARY = 1,
-  MOON_ORT_SYMBOL_NOT_FOUND = 2,
-  MOON_ORT_API_MISMATCH = 3,
-  MOON_ORT_STATUS = 4,
-  MOON_ORT_ALREADY_CLOSED = 5,
-  MOON_ORT_INVALID_ARGUMENT = 7
-};
-
-enum {
-  MOON_ORT_STATE_OPEN = 0,
-  MOON_ORT_STATE_CLOSED = 1,
-  MOON_ORT_STATE_FAILED = 2
-};
-
-typedef struct EnvPayload {
-  int32_t code;
-  int32_t state;
-  int32_t expected_api;
-  int32_t actual_api;
-  int32_t status_code;
-  int32_t api_version;
-  void *lib;
-  const OrtApi *api;
-  OrtEnv *env;
-  char version[160];
-  char message[768];
-  char path[1024];
-  char api_name[64];
-} EnvPayload;
+#include "ort_shared.h"
 
 typedef const OrtApiBase *(*OrtGetApiBaseFn)(void);
 
-static void copy_cstr(char *dst, size_t cap, const char *src) {
+void copy_cstr(char *dst, size_t cap, const char *src) {
   size_t i = 0;
   if (src == NULL) {
     src = "";
@@ -56,7 +22,7 @@ static void copy_cstr(char *dst, size_t cap, const char *src) {
   dst[i] = '\0';
 }
 
-static int32_t utf16_to_utf8(const uint16_t *src, int32_t n, char *dst, size_t cap) {
+int32_t utf16_to_utf8(const uint16_t *src, int32_t n, char *dst, size_t cap) {
   size_t w = 0;
   int32_t i;
   if (cap == 0) {
@@ -106,7 +72,7 @@ static int32_t utf16_to_utf8(const uint16_t *src, int32_t n, char *dst, size_t c
   return (int32_t)w;
 }
 
-static moonbit_string_t utf8_to_moonbit(const char *src) {
+moonbit_string_t utf8_to_moonbit(const char *src) {
   const unsigned char *bytes;
   int32_t units = 0;
   int32_t out_i = 0;
@@ -183,7 +149,52 @@ static void release_open_env(EnvPayload *payload) {
 }
 
 static void env_finalize(void *self) {
-  release_open_env((EnvPayload *)self);
+  EnvPayload *payload = (EnvPayload *)self;
+  if (payload->children > 0) {
+    abort();
+  }
+  release_open_env(payload);
+}
+
+void moon_ort_pin_env(EnvPayload *env) {
+  env->children++;
+  moonbit_incref(env);
+}
+
+void moon_ort_unpin_env(EnvPayload *env) {
+  if (env->children > 0) {
+    env->children--;
+  }
+  moonbit_decref(env);
+}
+
+void moon_ort_write_status(
+  int32_t *code,
+  int32_t *status_code,
+  char *message,
+  size_t message_cap,
+  char *api_name,
+  size_t api_name_cap,
+  const OrtApi *api,
+  OrtStatus *status,
+  const char *api_called
+) {
+  const char *text = NULL;
+  *code = MOON_ORT_STATUS;
+  if (status_code != NULL) {
+    *status_code = -1;
+  }
+  copy_cstr(api_name, api_name_cap, api_called);
+  if (api != NULL && status != NULL && api->GetErrorCode != NULL && status_code != NULL) {
+    *status_code = (int32_t)api->GetErrorCode(status);
+  }
+  if (api != NULL && status != NULL && api->GetErrorMessage != NULL) {
+    text = api->GetErrorMessage(status);
+  }
+  copy_cstr(message, message_cap, text != NULL ? text : "OrtStatus");
+  if (api != NULL && status != NULL && api->ReleaseStatus != NULL) {
+    api->ReleaseStatus(status);
+  }
 }
 
 static EnvPayload *new_payload(void) {
@@ -219,20 +230,18 @@ static int32_t probe_actual_api(const OrtApiBase *base) {
 }
 
 static void fill_status(EnvPayload *payload, const OrtApi *api, OrtStatus *status, const char *api_name) {
-  const char *message = NULL;
-  payload->code = MOON_ORT_STATUS;
   payload->state = MOON_ORT_STATE_FAILED;
-  copy_cstr(payload->api_name, sizeof(payload->api_name), api_name);
-  if (api != NULL && status != NULL && api->GetErrorCode != NULL) {
-    payload->status_code = (int32_t)api->GetErrorCode(status);
-  }
-  if (api != NULL && status != NULL && api->GetErrorMessage != NULL) {
-    message = api->GetErrorMessage(status);
-  }
-  copy_cstr(payload->message, sizeof(payload->message), message != NULL ? message : "OrtStatus");
-  if (api != NULL && status != NULL && api->ReleaseStatus != NULL) {
-    api->ReleaseStatus(status);
-  }
+  moon_ort_write_status(
+    &payload->code,
+    &payload->status_code,
+    payload->message,
+    sizeof(payload->message),
+    payload->api_name,
+    sizeof(payload->api_name),
+    api,
+    status,
+    api_name
+  );
 }
 
 EnvPayload *moon_ort_load(moonbit_string_t path) {
@@ -410,6 +419,10 @@ int32_t moon_ort_close(EnvPayload *payload) {
   }
   if (payload->state != MOON_ORT_STATE_OPEN || payload->env == NULL) {
     return MOON_ORT_ALREADY_CLOSED;
+  }
+  if (payload->children > 0) {
+    copy_cstr(payload->message, sizeof(payload->message), "runtime has open handles");
+    return MOON_ORT_BUSY;
   }
   release_open_env(payload);
   return MOON_ORT_OK;

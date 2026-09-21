@@ -102,10 +102,33 @@ pub fn Runtime::api_version(self : Runtime) -> Int raise OrtError {
 }
 
 ///|
+
+///|
+fn raise_handle(
+  code : Int,
+  status_code : Int,
+  message : String,
+  api : String,
+) -> Unit raise OrtError {
+  match code {
+    0 => ()
+    4 => raise Status(status_code, message, api)
+    5 => raise AlreadyClosed(api)
+    6 => raise UseAfterClose(api)
+    _ => raise InvalidArgument(message)
+  }
+}
+
+///|
 /// Release the `OrtEnv` exactly once. A second call returns `AlreadyClosed`.
+///
+/// Session options, sessions, and tensor values pin the loaded library. Closing
+/// the runtime while any of them is still open returns `InvalidArgument` and
+/// does not release the environment.
 pub fn Runtime::close(self : Runtime) -> Unit raise OrtError {
   match moon_ort_close(self) {
     0 => ()
-    _ => raise AlreadyClosed("Runtime::close")
+    5 => raise AlreadyClosed("Runtime::close")
+    _ => raise InvalidArgument(moon_ort_message(self))
   }
 }
