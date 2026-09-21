@@ -15,16 +15,11 @@ preferred_target = "native"
 
 supported_targets = "native"
 
-keywords = [
-  "onnx",
-  "onnxruntime",
-  "inference",
-  "native",
-  "ffi",
-]
+keywords = [ "onnx", "onnxruntime", "inference", "native", "ffi" ]
 
 description = "Native MoonBit CPU inference SDK for ONNX Runtime"
 
 // GitHub 公开仓库建立后再填写，例如：
 // repository = "https://github.com/HuLunTunTao/moon-ort"
+
 repository = ""
