@@ -19,3 +19,40 @@
 - Ubuntu 工作流只做静态检查。没有已登记的 macOS arm64 self-hosted runner，因此还不能把包标成完整发布就绪。见 [support.md](support.md)。
 - 发布之后，在干净项目里声明该依赖，显式提供官方 `libonnxruntime` 1.30.0，再运行场景文档中的官方测试。页面上的版本、README、许可证和仓库链接要与 tag、`moon.mod` 版本一致。
 - 在公开远程存在之前，不要补写 `repository`。远程由项目负责人创建；本文件不给出仓库 URL。
+
+## 本地打包演练
+
+下面的步骤只核对未发布的 zip。它不执行 `moon publish`，也不把包放进 MoonCakes。
+
+在模块目录执行 `moon package`。`repository` 为空时工具会警告，仍可退出 0。产物是被 git 忽略的 `_build/publish/HuLunTunTao-moon-ort-0.1.0.zip`。
+
+`moon add` 只查找已发布版本。未发布时：
+
+```sh
+moon add --no-update HuLunTunTao/moon-ort
+```
+
+退出码 255。错误原文：
+
+```text
+Could not find the latest published version of `HuLunTunTao/moon-ort` in the registry. Please consider running `moon update` to update the index.
+```
+
+本地演练不刷新注册表索引，改为把解压后的 zip 放进工作区。
+
+在仓库外的临时目录：
+
+```sh
+unzip -q _build/publish/HuLunTunTao-moon-ort-0.1.0.zip -d "$base/pkg"
+moon new --user prep --name downstream "$base/downstream"
+```
+
+把消费者的 `preferred_target` 和 `supported_targets` 都写成 `native`，与本模块一致。在 `$base` 执行 `moon work init downstream pkg`。消费者的 `moon.mod` 声明：
+
+```moon
+import {
+  "HuLunTunTao/moon-ort@0.1.0",
+}
+```
+
+可执行包再导入 `HuLunTunTao/moon-ort/src/raw`、`src/session` 和 `src/tensor`。然后在 `$base` 执行 `moon check --deny-warn`。调用方把 `MOON_ORT_LIBRARY` 指到自己的 `libonnxruntime` 1.30.0，把模型路径交给 `Session::create`，即可调用 `Runtime::load` 和 `Session::run`。这次演练只跑了 `add_f32.onnx`，不是发布后的 `moon add`，也不是三个场景的官方测试文件。
