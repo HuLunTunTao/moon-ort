@@ -5,6 +5,7 @@
 /// providers, or accept a device buffer or URL. Close it exactly once.
 pub struct Session {
   priv raw : @raw.Session
+  priv runtime : @raw.Runtime
 }
 
 ///|
@@ -14,7 +15,7 @@ pub fn Session::create(
   options : SessionOptions,
   path : String,
 ) -> Session raise @raw.OrtError {
-  { raw: @raw.Session::create(runtime, options.raw, path), }
+  { raw: @raw.Session::create(runtime, options.raw, path), runtime, }
 }
 
 ///|

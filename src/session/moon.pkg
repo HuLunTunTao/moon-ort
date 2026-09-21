@@ -1,5 +1,7 @@
 import {
   "HuLunTunTao/moon-ort/src/raw",
+  "HuLunTunTao/moon-ort/src/tensor",
   "moonbitlang/core/encoding/hex",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
 }
