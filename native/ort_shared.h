@@ -57,3 +57,18 @@ void moon_ort_write_status(
   OrtStatus *status,
   const char *api_called
 );
+
+typedef struct ValuePayload ValuePayload;
+
+int32_t moon_ort_value_code(ValuePayload *payload);
+int moon_ort_value_export_input(ValuePayload *payload, EnvPayload **env_out, OrtValue **value_out);
+ValuePayload *moon_ort_value_adopt(EnvPayload *env, OrtValue *value);
+void moon_ort_value_read_error(
+  const ValuePayload *payload,
+  int32_t *code,
+  int32_t *status_code,
+  char *message,
+  size_t message_cap,
+  char *api_name,
+  size_t api_name_cap
+);
