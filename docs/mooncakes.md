@@ -55,4 +55,4 @@ import {
 }
 ```
 
-可执行包再导入 `HuLunTunTao/moon-ort/src/raw`、`src/session` 和 `src/tensor`。然后在 `$base` 执行 `moon check --deny-warn`。调用方把 `MOON_ORT_LIBRARY` 指到自己的 `libonnxruntime` 1.30.0，把模型路径交给 `Session::create`，即可调用 `Runtime::load` 和 `Session::run`。这次演练只跑了 `add_f32.onnx`，不是发布后的 `moon add`，也不是三个场景的官方测试文件。
+可执行包再导入 `HuLunTunTao/moon-ort/src/raw`、`src/session` 和 `src/tensor`。然后在 `$base` 执行 `moon check --deny-warn`。调用方把 `MOON_ORT_LIBRARY` 指到自己的 `libonnxruntime` 1.30.0，把解压包 `testdata/` 里的模型交给同一次 `moon run`，即可调用 `Runtime::load` 和 `Session::run`。这次本地 zip 下游演练覆盖三个公开场景：`add_f32.onnx`、`two_inputs_i64.onnx`，以及 `two_outputs_f32_bool.onnx` 和动态 batch identity。入口是下游的一次 `moon run`，模型在解压包的 `testdata/`。它不是发布后的 `moon add`。
