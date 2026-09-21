@@ -1,0 +1,8 @@
+import {
+  "HuLunTunTao/moon-ort/src/raw",
+  "moonbitlang/core/env",
+}
+
+options(
+  "is-main": true,
+)
