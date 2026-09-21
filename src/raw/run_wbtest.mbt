@@ -6,10 +6,10 @@ extern "C" fn host_system(command : String) -> Int = "moon_ort_host_system"
 fn compile_fake_run() -> String raise Failure {
   let out = "/tmp/moon-ort-ffi-fake_run.dylib"
   let code = host_system(
-    "gcc-15 -Wall -Wextra -Werror -shared -fPIC -I native/vendor/onnxruntime/v1.30.0 -o \{out} native/support/fake_run.c",
+    "sh native/support/cc_compile.sh \{out} native/support/fake_run.c",
   )
   if code != 0 {
-    fail("gcc-15 failed to build fake_run: \{code}")
+    fail("c compiler failed to build fake_run: \{code}")
   }
   out
 }
