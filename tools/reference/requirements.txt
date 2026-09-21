@@ -1,0 +1,4 @@
+# Official ONNX Runtime used only by tools/reference/ort_diff.py.
+# This is not a MoonBit SDK runtime dependency.
+onnxruntime==1.30.0
+numpy==2.4.6

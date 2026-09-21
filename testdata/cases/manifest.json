@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "script": "testdata/generate_models.py",
+    "seed": 20260922,
+    "onnx": "1.17.0",
+    "opset": 13,
+    "ir_version": 9,
+    "ort_reference": "1.30.0",
+    "input_sampling": "random.Random(seed) draws add_f32 inputs, then i64 left/right, then shuffles the fixed two_outputs scores [-1.5, 0.25], then draws dynamic batch 1 and batch 3. If the two i64 vectors are equal, right is rotated one step through EXACT_I64 so a doubled left input cannot match the expected sum. Pools live in this script.",
+    "license": "MIT",
+    "license_note": "Self-authored by testdata/generate_models.py. No third-party weights. Redistributed under the repository LICENSE."
+  },
+  "positive": [
+    {
+      "id": "add_f32",
+      "model": "add_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "float32",
+          "shape": [
+            2
+          ],
+          "data": [
+            0.5,
+            -1.5
+          ]
+        }
+      },
+      "expected": {
+        "output": {
+          "dtype": "float32",
+          "shape": [
+            2
+          ],
+          "data": [
+            2.0,
+            -3.5
+          ]
+        }
+      }
+    },
+    {
+      "id": "two_inputs_i64",
+      "model": "two_inputs_i64.onnx",
+      "inputs": {
+        "left": {
+          "dtype": "int64",
+          "shape": [
+            2
+          ],
+          "data": [
+            -5,
+            -3
+          ]
+        },
+        "right": {
+          "dtype": "int64",
+          "shape": [
+            2
+          ],
+          "data": [
+            -3,
+            -1
+          ]
+        }
+      },
+      "expected": {
+        "sum": {
+          "dtype": "int64",
+          "shape": [
+            2
+          ],
+          "data": [
+            -8,
+            -4
+          ]
+        }
+      }
+    },
+    {
+      "id": "two_outputs_f32_bool",
+      "model": "two_outputs_f32_bool.onnx",
+      "inputs": {
+        "scores": {
+          "dtype": "float32",
+          "shape": [
+            2
+          ],
+          "data": [
+            -1.5,
+            0.25
+          ]
+        }
+      },
+      "expected": {
+        "shifted": {
+          "dtype": "float32",
+          "shape": [
+            2
+          ],
+          "data": [
+            -0.5,
+            1.25
+          ]
+        },
+        "positive": {
+          "dtype": "bool",
+          "shape": [
+            2
+          ],
+          "data": [
+            false,
+            true
+          ]
+        }
+      }
+    },
+    {
+      "id": "dynamic_identity_f32_batch1",
+      "model": "dynamic_identity_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            2
+          ],
+          "data": [
+            1.0,
+            -2.0
+          ]
+        }
+      },
+      "expected": {
+        "output": {
+          "dtype": "float32",
+          "shape": [
+            1,
+            2
+          ],
+          "data": [
+            1.0,
+            -2.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "dynamic_identity_f32_batch3",
+      "model": "dynamic_identity_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            2
+          ],
+          "data": [
+            2.0,
+            0.0,
+            -0.5,
+            2.0,
+            2.0,
+            -1.5
+          ]
+        }
+      },
+      "expected": {
+        "output": {
+          "dtype": "float32",
+          "shape": [
+            3,
+            2
+          ],
+          "data": [
+            2.0,
+            0.0,
+            -0.5,
+            2.0,
+            2.0,
+            -1.5
+          ]
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "invalid_model",
+      "model": "negative/invalid_model.onnx",
+      "inputs": {},
+      "expect_error": "invalid_model",
+      "message_contains": "Protobuf parsing failed"
+    },
+    {
+      "id": "add_f32_wrong_type",
+      "model": "add_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "int64",
+          "shape": [
+            2
+          ],
+          "data": [
+            1,
+            2
+          ]
+        }
+      },
+      "expect_error": "wrong_type",
+      "message_contains": "Unexpected input data type"
+    },
+    {
+      "id": "add_f32_wrong_shape",
+      "model": "add_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "float32",
+          "shape": [
+            3
+          ],
+          "data": [
+            0.5,
+            2.0,
+            1.0
+          ]
+        }
+      },
+      "expect_error": "wrong_shape",
+      "message_contains": "Got invalid dimensions"
+    },
+    {
+      "id": "two_inputs_i64_missing_input",
+      "model": "two_inputs_i64.onnx",
+      "inputs": {
+        "left": {
+          "dtype": "int64",
+          "shape": [
+            2
+          ],
+          "data": [
+            -5,
+            -3
+          ]
+        }
+      },
+      "expect_error": "missing_input",
+      "message_contains": "Required inputs (['right']) are missing"
+    }
+  ]
+}

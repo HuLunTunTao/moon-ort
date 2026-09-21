@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "ort_version": "1.30.0",
+  "float32_ceiling": {
+    "rtol": 0.0,
+    "atol": 0.0
+  },
+  "note": "这些图只含可精确表示的 f32/i64/bool 上的 Identity、Add 和 Greater。任一输出使用非零浮点容差都会放过真实的元素错误，因此每个 f32 输出都按位比较。整数和布尔没有容差，必须完全相同。",
+  "outputs": {
+    "add_f32": {
+      "output": {"dtype": "float32", "rtol": 0.0, "atol": 0.0}
+    },
+    "two_inputs_i64": {
+      "sum": {"dtype": "int64", "exact": true}
+    },
+    "two_outputs_f32_bool": {
+      "shifted": {"dtype": "float32", "rtol": 0.0, "atol": 0.0},
+      "positive": {"dtype": "bool", "exact": true}
+    },
+    "dynamic_identity_f32_batch1": {
+      "output": {"dtype": "float32", "rtol": 0.0, "atol": 0.0}
+    },
+    "dynamic_identity_f32_batch3": {
+      "output": {"dtype": "float32", "rtol": 0.0, "atol": 0.0}
+    }
+  }
+}
