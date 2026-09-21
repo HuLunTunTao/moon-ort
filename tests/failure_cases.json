@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "ort_version": "1.30.0",
+  "note": "可执行用例由 tools/reference/ort_diff.py 对官方 ONNX Runtime 1.30.0 运行。FFI 草案只描述步骤 1～2 的失败契约，本分支没有可导入的 SDK，不能写成 MoonBit 测试。",
+  "cases": [
+    {
+      "id": "invalid_model",
+      "kind": "failure",
+      "layer": "session",
+      "executable_now": true,
+      "runner": "tools/reference/ort_diff.py",
+      "manifest_id": "invalid_model",
+      "trigger": "用 testdata/negative/invalid_model.onnx 创建会话。该文件是固定的非 protobuf 字节。",
+      "expected": {
+        "outcome": "error",
+        "class": "invalid_model",
+        "moonbit": "返回结构化的模型加载错误，进程不崩溃。不要求错误文本等于 Python ORT 的英文句子。"
+      }
+    },
+    {
+      "id": "add_f32_wrong_type",
+      "kind": "failure",
+      "layer": "session",
+      "executable_now": true,
+      "runner": "tools/reference/ort_diff.py",
+      "manifest_id": "add_f32_wrong_type",
+      "trigger": "对 add_f32.onnx 的 input 提交 int64，模型要求 float32，shape 仍为 [2]。",
+      "expected": {
+        "outcome": "error",
+        "class": "wrong_type",
+        "moonbit": "返回结构化的输入类型错误，不执行推理。"
+      }
+    },
+    {
+      "id": "add_f32_wrong_shape",
+      "kind": "failure",
+      "layer": "session",
+      "executable_now": true,
+      "runner": "tools/reference/ort_diff.py",
+      "manifest_id": "add_f32_wrong_shape",
+      "trigger": "对 add_f32.onnx 的 input 提交 float32 shape [3]，模型要求 [2]。",
+      "expected": {
+        "outcome": "error",
+        "class": "wrong_shape",
+        "moonbit": "返回结构化的输入 shape 错误，不执行推理。"
+      }
+    },
+    {
+      "id": "two_inputs_i64_missing_input",
+      "kind": "failure",
+      "layer": "session",
+      "executable_now": true,
+      "runner": "tools/reference/ort_diff.py",
+      "manifest_id": "two_inputs_i64_missing_input",
+      "trigger": "对 two_inputs_i64.onnx 只提交 left，不提交 right。",
+      "expected": {
+        "outcome": "error",
+        "class": "missing_input",
+        "moonbit": "返回结构化的缺输入错误。Python ORT 1.30.0 在进入 Run 前报告该错误；MoonBit C API 的文本可以不同，分类必须表达缺少 right。"
+      }
+    },
+    {
+      "id": "missing_shared_library",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 FFI 运行时加载实现，不能导入未发布的 SDK。",
+      "trigger": "在搜索路径中不存在 ORT 共享库时加载运行时。",
+      "expected": {
+        "outcome": "error",
+        "class": "missing_library",
+        "observables": ["尝试过的库路径", "底层加载错误", "进程不崩溃"]
+      }
+    },
+    {
+      "id": "api_version_mismatch",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 FFI API 协商实现，不能导入未发布的 SDK。",
+      "trigger": "共享库可以加载，但 C API 版本不符合已固定的 ORT v1.30.0 约定。",
+      "expected": {
+        "outcome": "error",
+        "class": "api_mismatch",
+        "observables": ["API 版本信息", "不创建可用环境", "进程不崩溃"]
+      }
+    },
+    {
+      "id": "env_construct_and_close",
+      "kind": "lifecycle",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "trigger": "成功创建环境后关闭一次。",
+      "expected": {
+        "outcome": "success",
+        "class": "closed_once",
+        "observables": ["一次释放成功", "不遗留 OrtStatus"]
+      }
+    },
+    {
+      "id": "env_double_close",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "trigger": "对同一个环境关闭两次。",
+      "expected": {
+        "outcome": "error",
+        "class": "already_closed",
+        "observables": ["第二次返回已关闭错误", "不崩溃", "不重复释放"]
+      }
+    },
+    {
+      "id": "env_use_after_close",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "trigger": "关闭环境后再次用它创建或查询资源。",
+      "expected": {
+        "outcome": "error",
+        "class": "use_after_close",
+        "observables": ["返回已关闭错误", "不崩溃"]
+      }
+    },
+    {
+      "id": "null_handle_rejected",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有句柄封装，不能导入未发布的 SDK。",
+      "trigger": "把空句柄传入需要有效环境的调用。",
+      "expected": {
+        "outcome": "error",
+        "class": "null_handle",
+        "observables": ["在解引用空指针之前返回错误", "不崩溃"]
+      }
+    },
+    {
+      "id": "construct_failure_clears_ort_status",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有 OrtStatus 映射，不能导入未发布的 SDK。",
+      "trigger": "环境构造失败。",
+      "expected": {
+        "outcome": "error",
+        "class": "status_consumed",
+        "observables": ["可取得错误码", "可取得错误消息", "可取得 API 名称", "不遗留 OrtStatus", "异常不跨越 C ABI"]
+      }
+    },
+    {
+      "id": "partial_init_failure_releases_handles",
+      "kind": "failure",
+      "layer": "ffi",
+      "executable_now": false,
+      "blocked_on": "本分支没有部分初始化路径，不能导入未发布的 SDK。",
+      "trigger": "多步初始化在中间步骤失败。",
+      "expected": {
+        "outcome": "error",
+        "class": "partial_init_cleaned",
+        "observables": ["已创建句柄被释放", "不遗留 OrtStatus", "不崩溃"]
+      }
+    }
+  ]
+}
