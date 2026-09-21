@@ -1,0 +1,31 @@
+# MoonBit toolchains, dependencies, and build outputs
+.moon/
+.mooncakes/
+_build/
+**/.mooncakes/
+**/_build/
+
+# Downloaded ML assets and ONNX Runtime distributions
+models/
+assets/downloads/
+.deps/
+third_party/onnxruntime/bin/
+third_party/onnxruntime/lib/
+*.onnx
+!testdata/**/*.onnx
+*.onnx.data
+*.ort
+*.safetensors
+*.bin
+
+# Local/remote synchronization scratch space
+.sync/
+.remote-stage/
+
+# Local agent instructions
+AGENTS.md
+
+# Local editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
