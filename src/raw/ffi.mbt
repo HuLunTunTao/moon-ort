@@ -252,3 +252,61 @@ extern "C" fn moon_ort_session_custom_metadata(
   handle : Session,
   key : String,
 ) -> String = "moon_ort_session_custom_metadata"
+
+///|
+/// Opaque CPU tensor `OrtValue`. The C pointer stays inside the shim.
+#external
+pub type Value
+
+///|
+#borrow(runtime, shape, data)
+extern "C" fn moon_ort_value_create(
+  runtime : Runtime,
+  element_type : Int,
+  shape : FixedArray[Int64],
+  data : Bytes,
+) -> Value = "moon_ort_value_create"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_code(handle : Value) -> Int = "moon_ort_value_code"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_state(handle : Value) -> Int = "moon_ort_value_state"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_status_code(handle : Value) -> Int = "moon_ort_value_status_code"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_message(handle : Value) -> String = "moon_ort_value_message"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_api_name(handle : Value) -> String = "moon_ort_value_api_name"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_close(handle : Value) -> Int = "moon_ort_value_close"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_element_type(handle : Value) -> Int = "moon_ort_value_element_type"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_shape(handle : Value) -> FixedArray[Int64] = "moon_ort_value_shape"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_element_count(handle : Value) -> Int64 = "moon_ort_value_element_count"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_byte_count(handle : Value) -> Int = "moon_ort_value_byte_count"
+
+///|
+#borrow(handle)
+extern "C" fn moon_ort_value_copy_bytes(handle : Value) -> Bytes = "moon_ort_value_copy_bytes"
