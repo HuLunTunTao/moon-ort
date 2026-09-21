@@ -1,0 +1,8 @@
+///|
+import {
+  "HuLunTunTao/moon-ort/src/raw",
+  "HuLunTunTao/moon-ort/src/session",
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")
