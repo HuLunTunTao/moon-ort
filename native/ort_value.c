@@ -4,7 +4,7 @@
 
 #include "ort_shared.h"
 
-typedef struct ValuePayload {
+struct ValuePayload {
   int32_t code;
   int32_t state;
   int32_t status_code;
@@ -17,7 +17,7 @@ typedef struct ValuePayload {
   char api_name[64];
   EnvPayload *env;
   OrtValue *value;
-} ValuePayload;
+};
 
 #define MOON_ORT_VALUE_ACCESSORS(prefix, Type)                                 \
   int32_t moon_ort_##prefix##_code(Type *payload) {                            \
@@ -471,4 +471,188 @@ moonbit_bytes_t moon_ort_value_copy_bytes(ValuePayload *payload) {
   out = moonbit_make_bytes_raw(payload->byte_count);
   memcpy(out, buffer, (size_t)payload->byte_count);
   return out;
+}
+
+int moon_ort_value_export_input(ValuePayload *payload, EnvPayload **env_out, OrtValue **value_out) {
+  if (payload == NULL) {
+    return MOON_ORT_INVALID_ARGUMENT;
+  }
+  if (payload->state == MOON_ORT_STATE_CLOSED) {
+    return MOON_ORT_USE_AFTER_CLOSE;
+  }
+  if (payload->state != MOON_ORT_STATE_OPEN || payload->value == NULL || payload->env == NULL) {
+    return MOON_ORT_INVALID_ARGUMENT;
+  }
+  if (env_out != NULL) {
+    *env_out = payload->env;
+  }
+  if (value_out != NULL) {
+    *value_out = payload->value;
+  }
+  return MOON_ORT_OK;
+}
+
+void moon_ort_value_read_error(
+  const ValuePayload *payload,
+  int32_t *code,
+  int32_t *status_code,
+  char *message,
+  size_t message_cap,
+  char *api_name,
+  size_t api_name_cap
+) {
+  if (payload == NULL) {
+    if (code != NULL) {
+      *code = MOON_ORT_INVALID_ARGUMENT;
+    }
+    if (status_code != NULL) {
+      *status_code = -1;
+    }
+    copy_cstr(message, message_cap, "output value is null");
+    copy_cstr(api_name, api_name_cap, "Run");
+    return;
+  }
+  if (code != NULL) {
+    *code = payload->code;
+  }
+  if (status_code != NULL) {
+    *status_code = payload->status_code;
+  }
+  copy_cstr(message, message_cap, payload->message);
+  copy_cstr(api_name, api_name_cap, payload->api_name);
+}
+
+ValuePayload *moon_ort_value_adopt(EnvPayload *env, OrtValue *ort_value) {
+  ValuePayload *payload = new_value_payload();
+  const OrtApi *api;
+  OrtTensorTypeAndShapeInfo *info = NULL;
+  OrtStatus *status;
+  ONNXTensorElementDataType actual = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+  size_t rank = 0;
+  size_t width = 0;
+  int64_t count = 0;
+  int64_t *dims = NULL;
+  int product;
+  copy_cstr(payload->api_name, sizeof(payload->api_name), "Run");
+  if (env == NULL || env->state != MOON_ORT_STATE_OPEN || env->api == NULL) {
+    payload->code = MOON_ORT_USE_AFTER_CLOSE;
+    copy_cstr(payload->message, sizeof(payload->message), "runtime is closed");
+    if (ort_value != NULL && env != NULL && env->api != NULL && env->api->ReleaseValue != NULL) {
+      env->api->ReleaseValue(ort_value);
+    }
+    return payload;
+  }
+  api = env->api;
+  if (ort_value == NULL) {
+    value_invalid(payload, "Run", "output value is null");
+    return payload;
+  }
+  if (api->ReleaseValue == NULL || api->GetTensorTypeAndShape == NULL || api->GetTensorElementType == NULL ||
+      api->GetDimensionsCount == NULL || api->GetDimensions == NULL || api->ReleaseTensorTypeAndShapeInfo == NULL) {
+    if (api->ReleaseValue != NULL) {
+      api->ReleaseValue(ort_value);
+    }
+    value_invalid(payload, "Run", "tensor API is unavailable");
+    return payload;
+  }
+  status = api->GetTensorTypeAndShape(ort_value, &info);
+  if (status != NULL) {
+    api->ReleaseValue(ort_value);
+    moon_ort_write_status(
+      &payload->code,
+      &payload->status_code,
+      payload->message,
+      sizeof(payload->message),
+      payload->api_name,
+      sizeof(payload->api_name),
+      api,
+      status,
+      "GetTensorTypeAndShape"
+    );
+    return payload;
+  }
+  status = api->GetTensorElementType(info, &actual);
+  if (status == NULL) {
+    status = api->GetDimensionsCount(info, &rank);
+  }
+  if (status != NULL) {
+    drop_created(api, ort_value, info);
+    moon_ort_write_status(
+      &payload->code,
+      &payload->status_code,
+      payload->message,
+      sizeof(payload->message),
+      payload->api_name,
+      sizeof(payload->api_name),
+      api,
+      status,
+      "GetTensorTypeAndShape"
+    );
+    return payload;
+  }
+  if (rank > 64) {
+    drop_created(api, ort_value, info);
+    value_invalid(payload, "GetDimensionsCount", "tensor rank exceeds 64");
+    return payload;
+  }
+  if (element_width((int32_t)actual, &width) != 0) {
+    drop_created(api, ort_value, info);
+    value_invalid(payload, "GetTensorElementType", "tensor element type is not f32, i64, or bool");
+    return payload;
+  }
+  if (rank > 0) {
+    dims = calloc(rank, sizeof(*dims));
+    if (dims == NULL) {
+      drop_created(api, ort_value, info);
+      value_invalid(payload, "GetDimensions", "out of memory");
+      return payload;
+    }
+    status = api->GetDimensions(info, dims, rank);
+    if (status != NULL) {
+      free(dims);
+      drop_created(api, ort_value, info);
+      moon_ort_write_status(
+        &payload->code,
+        &payload->status_code,
+        payload->message,
+        sizeof(payload->message),
+        payload->api_name,
+        sizeof(payload->api_name),
+        api,
+        status,
+        "GetDimensions"
+      );
+      return payload;
+    }
+  }
+  api->ReleaseTensorTypeAndShapeInfo(info);
+  product = shape_product(dims, (int32_t)rank, &count);
+  if (product != 0) {
+    free(dims);
+    api->ReleaseValue(ort_value);
+    value_invalid(
+      payload,
+      "GetDimensions",
+      product == -1 ? "tensor dimension is negative" : "tensor shape product overflows"
+    );
+    return payload;
+  }
+  if (count > (int64_t)(INT32_MAX / (int64_t)width)) {
+    free(dims);
+    api->ReleaseValue(ort_value);
+    value_invalid(payload, "GetDimensions", "tensor byte count overflows");
+    return payload;
+  }
+  payload->env = env;
+  payload->value = ort_value;
+  payload->shape = dims;
+  payload->element_type = (int32_t)actual;
+  payload->rank = (int32_t)rank;
+  payload->element_count = count;
+  payload->byte_count = (int32_t)(count * (int64_t)width);
+  payload->state = MOON_ORT_STATE_OPEN;
+  payload->code = MOON_ORT_OK;
+  payload->status_code = -1;
+  moon_ort_pin_env(env);
+  return payload;
 }

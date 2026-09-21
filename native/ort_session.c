@@ -1267,3 +1267,341 @@ moonbit_string_t moon_ort_session_custom_metadata(SessionPayload *payload, moonb
   }
   return result;
 }
+
+static void **run_empty(void) {
+  return (void **)moonbit_empty_extern_ref_array;
+}
+
+static void release_created_outputs(const OrtApi *api, OrtValue **outputs, size_t count) {
+  size_t i;
+  if (outputs == NULL) {
+    return;
+  }
+  for (i = 0; i < count; i++) {
+    if (outputs[i] != NULL && api != NULL && api->ReleaseValue != NULL) {
+      api->ReleaseValue(outputs[i]);
+      outputs[i] = NULL;
+    }
+  }
+}
+
+static int run_io_count(SessionPayload *payload, int is_output, size_t *count) {
+  const char *api_name = is_output ? "SessionGetOutputCount" : "SessionGetInputCount";
+  const OrtApi *api = payload->env->api;
+  OrtStatus *status;
+  *count = 0;
+  if (is_output) {
+    if (api->SessionGetOutputCount == NULL) {
+      session_invalid(payload, api_name, "SessionGetOutputCount is unavailable");
+      return -1;
+    }
+    status = api->SessionGetOutputCount(payload->session, count);
+  } else {
+    if (api->SessionGetInputCount == NULL) {
+      session_invalid(payload, api_name, "SessionGetInputCount is unavailable");
+      return -1;
+    }
+    status = api->SessionGetInputCount(payload->session, count);
+  }
+  if (status != NULL) {
+    write_payload_status(
+      &payload->code,
+      &payload->status_code,
+      payload->message,
+      sizeof(payload->message),
+      payload->api_name,
+      sizeof(payload->api_name),
+      api,
+      status,
+      api_name
+    );
+    return -1;
+  }
+  return 0;
+}
+
+static int copy_indexed_name(
+  SessionPayload *payload,
+  int is_output,
+  size_t index,
+  char *dst,
+  size_t cap
+) {
+  const char *api_name = is_output ? "SessionGetOutputName" : "SessionGetInputName";
+  const OrtApi *api;
+  OrtAllocator *allocator = NULL;
+  OrtStatus *status;
+  char *tmp = NULL;
+  if (load_allocator(payload, &allocator) != 0) {
+    return -1;
+  }
+  api = payload->env->api;
+  if (is_output) {
+    if (api->SessionGetOutputName == NULL) {
+      session_invalid(payload, api_name, "SessionGetOutputName is unavailable");
+      return -1;
+    }
+    status = api->SessionGetOutputName(payload->session, index, allocator, &tmp);
+  } else {
+    if (api->SessionGetInputName == NULL) {
+      session_invalid(payload, api_name, "SessionGetInputName is unavailable");
+      return -1;
+    }
+    status = api->SessionGetInputName(payload->session, index, allocator, &tmp);
+  }
+  if (status != NULL) {
+    free_alloc(api, allocator, tmp, payload, "AllocatorFree");
+    if (payload->code == MOON_ORT_OK) {
+      write_payload_status(
+        &payload->code,
+        &payload->status_code,
+        payload->message,
+        sizeof(payload->message),
+        payload->api_name,
+        sizeof(payload->api_name),
+        api,
+        status,
+        api_name
+      );
+    } else if (api->ReleaseStatus != NULL) {
+      api->ReleaseStatus(status);
+    }
+    return -1;
+  }
+  if (tmp == NULL) {
+    session_invalid(payload, api_name, "name is null");
+    return -1;
+  }
+  copy_cstr(dst, cap, tmp);
+  return free_alloc(api, allocator, tmp, payload, "AllocatorFree");
+}
+
+static int name_in_session(SessionPayload *payload, int is_output, const char *want, int *found) {
+  size_t count = 0;
+  size_t index;
+  *found = 0;
+  if (run_io_count(payload, is_output, &count) != 0) {
+    return -1;
+  }
+  if (count > 4096) {
+    session_invalid(
+      payload,
+      is_output ? "SessionGetOutputCount" : "SessionGetInputCount",
+      "name count exceeds 4096"
+    );
+    return -1;
+  }
+  for (index = 0; index < count; index++) {
+    char buf[1024];
+    if (copy_indexed_name(payload, is_output, index, buf, sizeof(buf)) != 0) {
+      return -1;
+    }
+    if (strcmp(buf, want) == 0) {
+      *found = 1;
+      return 0;
+    }
+  }
+  return 0;
+}
+
+static int moon_name_utf8(moonbit_string_t name, char *dst, size_t cap) {
+  int32_t len;
+  if (name == NULL) {
+    return -1;
+  }
+  len = Moonbit_array_length(name);
+  if (len <= 0) {
+    return -1;
+  }
+  return utf16_to_utf8(name, len, dst, cap) < 0 ? -2 : 0;
+}
+
+void **moon_ort_session_run(
+  SessionPayload *payload,
+  moonbit_string_t *input_names,
+  ValuePayload **inputs,
+  moonbit_string_t *output_names
+) {
+  const OrtApi *api;
+  OrtStatus *status = NULL;
+  OrtValue **created = NULL;
+  char *input_store = NULL;
+  char *output_store = NULL;
+  const char **input_ptrs = NULL;
+  const char **output_ptrs = NULL;
+  const OrtValue **input_values = NULL;
+  void **result = NULL;
+  int32_t name_len;
+  int32_t value_len;
+  int32_t output_len;
+  int32_t i;
+  if (payload == NULL || session_ready(payload, "Run") != 0) {
+    return run_empty();
+  }
+  api = payload->env->api;
+  name_len = input_names == NULL ? 0 : Moonbit_array_length(input_names);
+  value_len = inputs == NULL ? 0 : Moonbit_array_length(inputs);
+  output_len = output_names == NULL ? 0 : Moonbit_array_length(output_names);
+  if (name_len != value_len) {
+    session_invalid(payload, "Run", "input count does not match values");
+    return run_empty();
+  }
+  if (name_len < 0 || output_len < 0 || name_len > 64 || output_len > 64) {
+    session_invalid(payload, "Run", "name count exceeds 64");
+    return run_empty();
+  }
+  if (name_len > 0) {
+    input_store = calloc((size_t)name_len, 1024);
+    input_ptrs = calloc((size_t)name_len, sizeof(*input_ptrs));
+    input_values = calloc((size_t)name_len, sizeof(*input_values));
+    if (input_store == NULL || input_ptrs == NULL || input_values == NULL) {
+      session_invalid(payload, "Run", "out of memory");
+      goto cleanup;
+    }
+  }
+  if (output_len > 0) {
+    output_store = calloc((size_t)output_len, 1024);
+    output_ptrs = calloc((size_t)output_len, sizeof(*output_ptrs));
+    created = calloc((size_t)output_len, sizeof(*created));
+    if (output_store == NULL || output_ptrs == NULL || created == NULL) {
+      session_invalid(payload, "Run", "out of memory");
+      goto cleanup;
+    }
+  }
+  for (i = 0; i < name_len; i++) {
+    EnvPayload *value_env = NULL;
+    OrtValue *ort_value = NULL;
+    int exported = moon_ort_value_export_input(inputs[i], &value_env, &ort_value);
+    int converted;
+    int found = 0;
+    char *slot = input_store + ((size_t)i * 1024);
+    input_ptrs[i] = slot;
+    if (exported == MOON_ORT_USE_AFTER_CLOSE) {
+      payload->code = MOON_ORT_USE_AFTER_CLOSE;
+      copy_cstr(payload->api_name, sizeof(payload->api_name), "Session::run");
+      copy_cstr(payload->message, sizeof(payload->message), "input value is closed");
+      goto cleanup;
+    }
+    if (exported != MOON_ORT_OK) {
+      session_invalid(payload, "Run", "input value is null");
+      goto cleanup;
+    }
+    if (value_env != payload->env) {
+      session_invalid(payload, "Run", "input value belongs to a different runtime");
+      goto cleanup;
+    }
+    converted = moon_name_utf8(input_names[i], slot, 1024);
+    if (converted == -1) {
+      session_invalid(payload, "Run", "input name is not in the session");
+      goto cleanup;
+    }
+    if (converted != 0) {
+      session_invalid(payload, "Run", "input name is too long");
+      goto cleanup;
+    }
+    if (name_in_session(payload, 0, input_ptrs[i], &found) != 0) {
+      goto cleanup;
+    }
+    if (!found) {
+      session_invalid(payload, "Run", "input name is not in the session");
+      goto cleanup;
+    }
+    input_values[i] = ort_value;
+  }
+  for (i = 0; i < output_len; i++) {
+    int converted;
+    int found = 0;
+    char *slot = output_store + ((size_t)i * 1024);
+    output_ptrs[i] = slot;
+    converted = moon_name_utf8(output_names[i], slot, 1024);
+    if (converted == -1) {
+      session_invalid(payload, "Run", "output name is not in the session");
+      goto cleanup;
+    }
+    if (converted != 0) {
+      session_invalid(payload, "Run", "output name is too long");
+      goto cleanup;
+    }
+    if (name_in_session(payload, 1, output_ptrs[i], &found) != 0) {
+      goto cleanup;
+    }
+    if (!found) {
+      session_invalid(payload, "Run", "output name is not in the session");
+      goto cleanup;
+    }
+  }
+  if (api->Run == NULL) {
+    session_invalid(payload, "Run", "Run is unavailable");
+    goto cleanup;
+  }
+  status = api->Run(
+    payload->session,
+    NULL,
+    (const char *const *)input_ptrs,
+    (const OrtValue *const *)input_values,
+    (size_t)name_len,
+    (const char *const *)output_ptrs,
+    (size_t)output_len,
+    created
+  );
+  if (status != NULL) {
+    release_created_outputs(api, created, (size_t)output_len);
+    write_payload_status(
+      &payload->code,
+      &payload->status_code,
+      payload->message,
+      sizeof(payload->message),
+      payload->api_name,
+      sizeof(payload->api_name),
+      api,
+      status,
+      "Run"
+    );
+    goto cleanup;
+  }
+  if (output_len == 0) {
+    goto cleanup;
+  }
+  result = moonbit_make_extern_ref_array_raw(output_len);
+  for (i = 0; i < output_len; i++) {
+    result[i] = NULL;
+  }
+  for (i = 0; i < output_len; i++) {
+    ValuePayload *adopted = moon_ort_value_adopt(payload->env, created[i]);
+    int32_t j;
+    created[i] = NULL;
+    result[i] = adopted;
+    if (adopted == NULL || moon_ort_value_code(adopted) != MOON_ORT_OK) {
+      moon_ort_value_read_error(
+        adopted,
+        &payload->code,
+        &payload->status_code,
+        payload->message,
+        sizeof(payload->message),
+        payload->api_name,
+        sizeof(payload->api_name)
+      );
+      release_created_outputs(api, created, (size_t)output_len);
+      for (j = 0; j <= i; j++) {
+        if (result[j] != NULL) {
+          moonbit_decref(result[j]);
+          result[j] = NULL;
+        }
+      }
+      moonbit_decref(result);
+      result = NULL;
+      goto cleanup;
+    }
+  }
+cleanup:
+  free(input_store);
+  free(output_store);
+  free(input_ptrs);
+  free(output_ptrs);
+  free(input_values);
+  free(created);
+  if (payload->code != MOON_ORT_OK) {
+    return run_empty();
+  }
+  return result == NULL ? run_empty() : result;
+}

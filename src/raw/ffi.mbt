@@ -254,6 +254,15 @@ extern "C" fn moon_ort_session_custom_metadata(
 ) -> String = "moon_ort_session_custom_metadata"
 
 ///|
+#borrow(handle, input_names, inputs, output_names)
+extern "C" fn moon_ort_session_run(
+  handle : Session,
+  input_names : FixedArray[String],
+  inputs : FixedArray[Value],
+  output_names : FixedArray[String],
+) -> FixedArray[Value] = "moon_ort_session_run"
+
+///|
 /// Opaque CPU tensor `OrtValue`. The C pointer stays inside the shim.
 #external
 pub type Value

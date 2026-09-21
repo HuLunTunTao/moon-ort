@@ -319,3 +319,27 @@ pub fn Session::custom_metadata(
   self.check()
   value
 }
+
+///|
+/// Run `self` synchronously.
+///
+/// `input_names` addresses open CPU values already created for this runtime.
+/// Each name must be one returned by `Session::input_name`, and
+/// `input_names.length()` must equal `inputs.length()`. Each output name must
+/// be one returned by `Session::output_name`.
+///
+/// Returned values are owned by the caller and must be closed exactly once.
+/// Inputs stay owned by the caller. A failed run releases every output value
+/// created before the failure and does not leave an `OrtStatus`. Pointers stay
+/// inside this package.
+pub fn Session::run(
+  self : Session,
+  input_names : FixedArray[String],
+  inputs : FixedArray[Value],
+  output_names : FixedArray[String],
+) -> FixedArray[Value] raise OrtError {
+  self.guard_open("Session::run")
+  let outputs = moon_ort_session_run(self, input_names, inputs, output_names)
+  self.check()
+  outputs
+}
