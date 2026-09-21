@@ -21,3 +21,14 @@
 同目录 `LICENSE` 的上游 URL 是 https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE ，SHA-256 为 `2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c`。复测命令写在 `native/vendor/onnxruntime/v1.30.0/SOURCE.md`。
 
 任何新资产进入仓库前，必须在本文件补充来源、许可证、再分发权限和 SHA-256。微型 ONNX 测试模型是例外：仅当其可再生成、体积很小且来源/许可证明确时，才允许放入 `testdata/`。
+
+## 只在开发机上使用的 Python 工具
+
+这些包不写入 `moon.mod`，不放进源码树，也不进入 MoonCakes 包。
+
+| 项目 | 版本 | 链接 | 许可证 | 参考范围 |
+|---|---|---|---|---|
+| ONNX | `1.17.0`，由 `testdata/requirements.txt` 固定 | https://github.com/onnx/onnx | Apache-2.0。本次干净 venv 里该 wheel 的许可证文本为 Apache License Version 2.0 | `testdata/generate_models.py` 生成微型夹具 |
+| NumPy | 本次 venv 装入 `2.4.6`；`tools/reference/requirements.txt` 另固定同一版本 | https://numpy.org | BSD-3-Clause。依据是该 wheel 的 `licenses/LICENSE.txt` | `onnx==1.17.0` 的安装依赖，也供 `tools/reference/ort_diff.py` 排列张量 |
+| protobuf | 本次 venv 解析为 `7.36.2`。仓库没有单独固定这个版本 | https://github.com/protocolbuffers/protobuf | BSD-3-Clause。依据是该 wheel 的许可证文本 | `onnx==1.17.0` 的安装依赖 |
+| ONNX Runtime Python | `1.30.0`，由 `tools/reference/requirements.txt` 固定 | https://github.com/microsoft/onnxruntime | MIT，与随包头文件同一上游 | 只给 `tools/reference/ort_diff.py` 做官方对照。本次夹具再生没有安装这个 wheel |

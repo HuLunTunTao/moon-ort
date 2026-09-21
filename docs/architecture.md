@@ -92,12 +92,14 @@ C shim 在包构建期使用这份头文件编译。下游不安装开发头文�
 
 ## 5. 支持矩阵
 
+状态只用三类：已验证、预计可用、未支持。当前没有预计可用的行。细节见 [support.md](support.md)。
+
 | 平台 / 执行提供程序 | 状态 | v0.1 承诺 |
 |---|---|---|
-| macOS arm64 / CPU | 唯一正式平台。官方 1.30.0 比较记录在 [scenarios.md](scenarios.md) | 正式支持与验收平台 |
-| Linux（任意架构） | 未验证 | 不支持 |
-| Windows | 不做 | 不支持 |
-| CoreML 及其他非 CPU 提供程序 | 不在本计划内 | 不进入 v0.1 |
+| macOS arm64 / CPU | 已验证。官方 1.30.0 比较记录在 [scenarios.md](scenarios.md) | 正式支持与验收平台 |
+| Linux（任意架构） | 未支持。没有 Linux native 验收记录 | 不承诺 |
+| Windows | 未支持 | 不承诺 |
+| CoreML 及其他非 CPU 提供程序 | 未支持 | 不进入 v0.1 |
 
 Ubuntu job 只运行 `moon fmt --check` 和 `moon check --deny-warn`。它不加载 ORT，绿灯也不是 Linux native 支持，不能代替 macOS arm64 上的原生运行证据。没有已登记的 macOS arm64 self-hosted runner，工作流里不放置 macOS job。在该 runner 实际跑通之前，项目不是完整发布就绪。
 
@@ -173,8 +175,11 @@ v0.1 把边界定在官方 C API、CPU 和三种张量类型，是为了让普�
 
 ## 12. 仍未完成的发布项
 
+`testdata` 已在 `09d6c52ff66431395e9a2dcf9dae108127744fb3` 用干净临时 venv 再生。`mlpython3119` 是 CPython 3.11.9，`pip install -r testdata/requirements.txt` 装上 `onnx==1.17.0`，`testdata/generate_models.py` 写回原路径后 `shasum -a 256 -c SHA256SUMS` 六项均为 OK，已提交字节没有变化。
+
+仍开放的发布项：
+
 - 公开 Git 远程还不存在，`moon.mod` 的 `repository` 保持为空。
 - 没有已登记的 macOS arm64 self-hosted runner，因此没有 native CI 绿灯。
 - MoonCakes 尚未发布，干净项目安装也尚未复验。
-- `testdata` 的干净临时环境再生不在本次文档更新中重跑。
 - Laya 真实 I/O 仍不是公开能力。
