@@ -1,8 +1,8 @@
 # v0.1 能力边界
 
-本文冻结 `HuLunTunTao/moon-ort` v0.1 的书面契约，相对基线 `63c082c`。契约是后续实现必须遵守的边界。基线没有 SDK 源码、没有 Session、没有 `Run`，因此下文各项能力都是目标，不是已经支持的功能。
+本文冻结 `HuLunTunTao/moon-ort` v0.1 的书面契约。契约从基线 `63c082c` 写起；当时没有 SDK 源码。安全多输入多输出 `Run` 已在 `150990da2b3ff2db8a7324aa018b46d15aa5e6e4`。安装、支持矩阵、限制、三个公开场景、远程复验和 MoonCakes 准备分别见 [install.md](install.md)、[support.md](support.md)、[limits.md](limits.md)、[scenarios.md](scenarios.md)、[remote-verify.md](remote-verify.md) 和 [mooncakes.md](mooncakes.md)。
 
-本文不发布 MoonCakes，不创建 GitHub remote，也不代替根 `README.md`。根 README 仍是短入口；安装、运行时依赖、支持矩阵和所有权以本文为准。
+本文不发布 MoonCakes，不创建 GitHub remote，也不代替根 `README.md`。根 README 仍是短入口。
 
 ## 1. 模块
 
@@ -19,16 +19,14 @@
 
 v0.1 只发布 native 目标。本文件不另写基线里没有的 MoonBit 编译器最低版本号。以后对已提交 SHA 做验收时，记录当次实际使用的 MoonBit / moonc 版本。
 
-计划中的目录（除 `moon.mod`、`docs/`、`testdata/` 外，基线均未创建）：
+当前包目录：
 
-| 路径 | 冻结职责 |
+| 路径 | 职责 |
 |---|---|
-| `src/raw/` | 唯一允许声明 native stub 的包；其 `moon.pkg.json` 不得出现 `cc-link-flags` 或 `-lonnxruntime` |
+| `src/raw/` | 唯一声明 native stub 的包。配置文件是 `moon.pkg`，只有 `stub-cc-flags`，没有 `cc-link-flags` 或 `-lonnxruntime`。`Runtime::load` 也在这里 |
 | `native/vendor/onnxruntime/v1.30.0/` | 随包分发的官方 C API 头文件 |
-| `src/runtime/` | `Runtime::load` 与 `Env` |
 | `src/session/` | `SessionOptions`、`Session`、元数据、同步 `Run` |
 | `src/tensor/` | `f32` / `i64` / `bool` CPU 张量 |
-| `src/api/` | 对普通用户稳定的公共入口 |
 
 ## 2. 运行时 ABI
 
@@ -41,7 +39,7 @@ v0.1 只动态加载官方 ONNX Runtime **v1.30.0** C API。
 - 缺库或 API 版本不符时，`Runtime::load` 返回结构化错误，不崩溃。错误至少包含：尝试过的路径、动态加载器原始错误、实际 API 版本、期望 API 版本。
 - 不提供独立 `doctor` CLI。加载诊断只走上述结构化结果。
 
-未归档、且不能当作本仓库验收的探索：官方 ORT v1.30.0 曾在 macOS arm64 上完成 `dlopen`、协商当时称为 C API v30 的结果、创建 `OrtEnv`，并用独立 C 程序得到 `[2, 3] -> [3.5, 1]`。该模型不是 `testdata/add_f32.onnx`。这组数字不是三个公开场景的预期输出，也不是 SDK 测试证据。另一项未归档探索表明 MoonBit `native-stub` 库包可被独立 executable 消费，且 `moon package --list` 会包含 C stub。两项都还没有绑定已提交 SHA 的可重跑归档，不能作为 M0 输入。真实 MoonCakes 安装仍要等发布之后再验证。
+不能当作 SDK 验收的历史探索：官方 ORT v1.30.0 曾用独立 C 程序得到 `[2, 3] -> [3.5, 1]`。该模型不是 `testdata/add_f32.onnx`。这组数字不是三个公开场景的预期输出。已绑定提交的官方比较是 [scenarios.md](scenarios.md) 中的 `150990da2b3ff2db8a7324aa018b46d15aa5e6e4`。真实 MoonCakes 安装仍要等发布之后再验证。
 
 ## 3. 编译期头文件
 
@@ -53,13 +51,13 @@ native/vendor/onnxruntime/v1.30.0/onnxruntime_c_api.h
 
 C shim 在包构建期使用这份头文件编译。下游不安装开发头文件。
 
-基线 `63c082c` 的仓库里还没有该头文件。SHA-256 与精确下载 URL 待引入该文件的 FFI 提交写入第三方声明。本文不编造哈希。
+头文件 URL 与 SHA-256 写在 `native/vendor/onnxruntime/v1.30.0/SOURCE.md` 和根目录 `THIRD_PARTY_NOTICES.md`。`onnxruntime_c_api.h` 的 SHA-256 是 `e035e30c27e74c8c00e0f483e576e12b4067d17f12e9237fd6eff8b346c9b381`。
 
-`THIRD_PARTY_NOTICES.md` 已记录一份 macOS arm64 CPU 运行时归档的 SHA-256：`6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012`。该值标识共享库归档，不是头文件哈希，也不附带本仓库已提交 SHA 上的可重跑命令，因此不是 SDK 验收证据。
+`THIRD_PARTY_NOTICES.md` 还保留一份先前记录的 macOS arm64 CPU 运行时归档 SHA-256：`6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012`。该值标识共享库归档，不是头文件哈希，也不是三个公开场景的推理证据。
 
 ## 4. 能力矩阵
 
-下表是 v0.1 要交付的公共能力。每一行在基线都没有 SDK 实现，也没有 `Run` 证据。
+下表是 v0.1 的公共能力。这些类型已在 `150990da2b3ff2db8a7324aa018b46d15aa5e6e4`。官方数值见 [scenarios.md](scenarios.md)，未验证的平台不能从这张表推成已支持。
 
 | 能力 | v0.1 契约 |
 |---|---|
@@ -96,12 +94,12 @@ C shim 在包构建期使用这份头文件编译。下游不安装开发头文�
 
 | 平台 / 执行提供程序 | 状态 | v0.1 承诺 |
 |---|---|---|
-| macOS arm64 / CPU | 唯一正式平台。加载与微型模型只有未归档探索，没有绑定已提交 SHA 的 SDK 验收 | 正式支持与验收平台 |
-| Linux（任意架构） | 未验证 | 不支持。不得写成已支持，也不得用 Linux native 成功来宣称 |
+| macOS arm64 / CPU | 唯一正式平台。官方 1.30.0 比较记录在 [scenarios.md](scenarios.md) | 正式支持与验收平台 |
+| Linux（任意架构） | 未验证 | 不支持 |
 | Windows | 不做 | 不支持 |
 | CoreML 及其他非 CPU 提供程序 | 不在本计划内 | 不进入 v0.1 |
 
-本任务不添加 CI。若后续加入 Ubuntu job，该 job 只能做格式、可移植静态检查和不加载 ORT 的纯 MoonBit 测试。Ubuntu 绿灯不是 Linux native 支持，也不能代替 macOS arm64 上的原生构建与运行证据。未配置受控 macOS arm64 runner 之前，项目不是完整发布就绪。
+Ubuntu job 只运行 `moon fmt --check` 和 `moon check --deny-warn`。它不加载 ORT，绿灯也不是 Linux native 支持，不能代替 macOS arm64 上的原生运行证据。没有已登记的 macOS arm64 self-hosted runner，工作流里不放置 macOS job。在该 runner 实际跑通之前，项目不是完整发布就绪。
 
 ## 6. 所有权、释放与错误
 
@@ -128,9 +126,9 @@ C shim 在包构建期使用这份头文件编译。下游不安装开发头文�
 
 ## 7. 三个公开场景
 
-下面三个场景是 v0.1 的公开目标，都不依赖私有资产。基线只有可再生成的夹具文件，没有 MoonBit `Run`。本文不提供运行命令、张量名、shape 或预期数值；这些要等 SDK `Run` 与官方 ORT 对照同时存在后再写。当前没有 SDK `Run` 证据。
+三个场景都不依赖私有资产。命令、提交 SHA 和官方 ORT 1.30.0 的预期值写在 [scenarios.md](scenarios.md)。Laya 不是其中之一。
 
-夹具由 `testdata/generate_models.py` 生成，生成环境为 `onnx==1.17.0`、opset 13、IR version 9，许可证与本项目同为 MIT。下表 SHA-256 来自已提交的 `testdata/SHA256SUMS`，只证明夹具字节，不证明推理结果。
+夹具由 `testdata/generate_models.py` 生成，生成环境为 `onnx==1.17.0`、opset 13、IR version 9，许可证与本项目同为 MIT。下表 SHA-256 来自已提交的 `testdata/SHA256SUMS`，证明夹具字节；推理数值以场景文档为准。
 
 | 场景 | 夹具 | 夹具 SHA-256 | 目标说明 |
 |---|---|---|---|
@@ -166,16 +164,17 @@ v0.1 把边界定在官方 C API、CPU 和三种张量类型，是为了让普�
 
 | 对象 | 许可证 | 分发 |
 |---|---|---|
-| 本项目 | MIT（根 `LICENSE`） | 随仓库与未来的 MoonCakes 包 |
-| ONNX Runtime 共享库与 C API | MIT | 共享库不随包分发；头文件按第 3 节随源码分发，SHA-256 待 FFI 提交 |
+| 本项目 | MIT（根 `LICENSE`） | 随仓库；MoonCakes 包尚未发布 |
+| ONNX Runtime 共享库与 C API | MIT | 共享库不随包分发；头文件按第 3 节随源码分发，SHA-256 见 `THIRD_PARTY_NOTICES.md` |
 | `testdata/` 微型 ONNX | MIT，本目录脚本生成，不含第三方权重 | 已在仓库中，可按 `testdata/README.md` 再生 |
-| Laya 权重与 tokenizer | 未核实 | 不进入仓库，不进入公开文档的可用能力 |
+| Laya 权重与 tokenizer | 未核实 | 不进入仓库，不进入公开场景 |
 
-任何新的第三方源码或模型进入仓库前，先在 `THIRD_PARTY_NOTICES.md` 写明来源、许可证、再分发权限和 SHA-256。该文件归 Coordinator 更新；本文不改写它。
+任何新的第三方源码或模型进入仓库前，先在 `THIRD_PARTY_NOTICES.md` 写明来源、许可证、再分发权限和 SHA-256。
 
-## 12. 故意留下的未核验项
+## 12. 仍未完成的发布项
 
-- 头文件 SHA-256 与精确 URL：待 FFI 提交把 `onnxruntime_c_api.h` 放入 `native/vendor/onnxruntime/v1.30.0/` 后再记录。
-- 远程加载尖峰与 `native-stub` 尖峰：没有绑定已提交 SHA 的归档。
-- SDK `Run`：不存在。三个公开场景没有命令、张量契约或官方 ORT 对照值。
-- Laya 真实 I/O：在会话元数据导出出现之前保持阻塞。
+- 公开 Git 远程还不存在，`moon.mod` 的 `repository` 保持为空。
+- 没有已登记的 macOS arm64 self-hosted runner，因此没有 native CI 绿灯。
+- MoonCakes 尚未发布，干净项目安装也尚未复验。
+- `testdata` 的干净临时环境再生不在本次文档更新中重跑。
+- Laya 真实 I/O 仍不是公开能力。
