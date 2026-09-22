@@ -427,16 +427,3 @@ int32_t moon_ort_close(EnvPayload *payload) {
   release_open_env(payload);
   return MOON_ORT_OK;
 }
-
-int32_t moon_ort_host_system(moonbit_string_t command) {
-  char buf[8192];
-  int rc;
-  if (command == NULL) {
-    return -1;
-  }
-  if (utf16_to_utf8(command, Moonbit_array_length(command), buf, sizeof(buf)) < 0) {
-    return -1;
-  }
-  rc = system(buf);
-  return (int32_t)rc;
-}

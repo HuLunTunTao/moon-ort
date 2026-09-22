@@ -1,14 +1,9 @@
 ///|
-/// Build the raw fake OrtValue library. This is not official ONNX Runtime.
-#borrow(command)
-extern "C" fn host_system(command : String) -> Int = "moon_ort_host_system"
 
 ///|
 fn compile_fake_tensor() -> String raise Failure {
   let out = "/tmp/moon-ort-sdk-tensor-fake_tensor.dylib"
-  let code = host_system(
-    "sh native/support/cc_compile.sh \{out} native/support/fake_tensor.c",
-  )
+  let code = @test_support.compile_fake("fake_tensor", out)
   if code != 0 {
     fail("c compiler failed to build fake_tensor: \{code}")
   }

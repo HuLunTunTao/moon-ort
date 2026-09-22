@@ -5,3 +5,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
 }
+
+import {
+  "HuLunTunTao/moon-ort/src/test_support",
+} for "test"

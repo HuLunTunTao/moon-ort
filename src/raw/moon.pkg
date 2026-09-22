@@ -1,3 +1,11 @@
+import {
+  "HuLunTunTao/moon-ort/src/test_support",
+} for "test"
+
+import {
+  "HuLunTunTao/moon-ort/src/test_support",
+} for "wbtest"
+
 options(
   "native-stub": [ "stub.c" ],
   link: { "native": { "stub-cc-flags": "-Wall -Wextra -Werror" } },

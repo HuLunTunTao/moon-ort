@@ -2,10 +2,10 @@
 test "file sha256 matches known vectors and the add fixture" {
   let empty = "/tmp/moon-ort-sha-empty"
   let abc = "/tmp/moon-ort-sha-abc"
-  if host_system(": > \{empty}") != 0 {
+  if @test_support.write_file(empty, "") != 0 {
     fail("failed to create empty file")
   }
-  if host_system("printf abc > \{abc}") != 0 {
+  if @test_support.write_file(abc, "abc") != 0 {
     fail("failed to create abc file")
   }
   inspect(

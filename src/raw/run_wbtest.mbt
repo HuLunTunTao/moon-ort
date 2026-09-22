@@ -1,13 +1,7 @@
 ///|
-#borrow(command)
-extern "C" fn host_system(command : String) -> Int = "moon_ort_host_system"
-
-///|
 fn compile_fake_run() -> String raise Failure {
   let out = "/tmp/moon-ort-ffi-fake_run.dylib"
-  let code = host_system(
-    "sh native/support/cc_compile.sh \{out} native/support/fake_run.c",
-  )
+  let code = @test_support.compile_fake("fake_run", out)
   if code != 0 {
     fail("c compiler failed to build fake_run: \{code}")
   }

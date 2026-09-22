@@ -1,3 +1,7 @@
 import {
   "HuLunTunTao/moon-ort/src/raw",
 }
+
+import {
+  "HuLunTunTao/moon-ort/src/test_support",
+} for "test"
