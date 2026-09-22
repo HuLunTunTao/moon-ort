@@ -9,16 +9,23 @@ export LC_ALL=C
 export LANG=C
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-  echo "usage: scripts/remote-verify.sh <ssh-destination> [commit]" >&2
+  echo "usage: MOON_ORT_REMOTE_ROOT=<remote-root> scripts/remote-verify.sh <ssh-destination> [commit]" >&2
   exit 2
 fi
 
 dest=$1
 requested=${2:-HEAD}
-remote_root=<remote-root>
-libonnx="${remote_root}/.deps/onnxruntime/v1.30.0/onnxruntime-osx-arm64-1.30.0/lib/libonnxruntime.1.30.0.dylib"
-moon_bin="${remote_root}/.moon/bin/moon"
-moonc_bin="${remote_root}/.moon/bin/moonc"
+: "${MOON_ORT_REMOTE_ROOT:?set MOON_ORT_REMOTE_ROOT to the verifier-owned remote root}"
+remote_root=$MOON_ORT_REMOTE_ROOT
+case "$remote_root" in
+  /|""|*[![:print:]]*)
+    echo "MOON_ORT_REMOTE_ROOT must be a non-root printable path" >&2
+    exit 2
+    ;;
+esac
+libonnx=${MOON_ORT_LIBRARY:-"${remote_root}/.deps/onnxruntime/v1.30.0/onnxruntime-osx-arm64-1.30.0/lib/libonnxruntime.1.30.0.dylib"}
+moon_bin=${MOON_ORT_MOON_BIN:-"${remote_root}/.moon/bin/moon"}
+moonc_bin=${MOON_ORT_MOONC_BIN:-"${remote_root}/.moon/bin/moonc"}
 
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 sha=$(git -C "$repo_root" rev-parse --verify "${requested}^{commit}")

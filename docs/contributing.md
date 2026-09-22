@@ -1,6 +1,6 @@
 # 贡献与本地测试
 
-从已有源码树开始。公开 Git 远程还不存在，本文件不给出仓库 URL。
+从已有源码树开始。
 
 改动 MoonBit 源码或包配置后，在仓库根目录运行：
 
@@ -10,7 +10,7 @@ moon check --deny-warn
 moon test --deny-warn
 ```
 
-`moon test` 会编译 `src/raw` 的 C stub。本机验收把临时 `PATH` 前插一个目录，使其中的 `cc` 指向 `the compiler selected through CC`，不改系统默认编译器。未设置 `MOON_ORT_LIBRARY` 时，官方比较测试打印 `skip:` 并退出 0。那不是官方 ONNX Runtime 通过。
+`moon test` 会编译 `src/raw` 的 C stub。测试优先采用环境变量 `CC` 指定的编译器，未指定时依次尝试 `gcc-15` 与系统 `cc`。未设置 `MOON_ORT_LIBRARY` 时，官方比较测试打印 `skip:` 并退出 0；那不是官方 ONNX Runtime 通过。
 
 微型夹具的再生命令在 [testdata/README.md](../testdata/README.md)。生成器不改写 `SHA256SUMS`；字节变化会使 `shasum -a 256 -c SHA256SUMS` 失败。
 
