@@ -51,12 +51,12 @@ fn DType::same(self : DType, other : DType) -> Bool {
 /// The `OrtValue` pointer stays inside `src/raw`. Callers pass MoonBit arrays;
 /// this value copies them and closes the underlying tensor exactly once.
 pub struct Tensor {
-  ort : @raw.Value
-  kind : DType
-  dims : Array[Int64]
-  count : Int64
-  nbytes : Int
-  closed : Ref[Bool]
+  priv ort : @raw.Value
+  priv kind : DType
+  priv dims : Array[Int64]
+  priv count : Int64
+  priv nbytes : Int
+  priv closed : Ref[Bool]
 }
 
 ///|
