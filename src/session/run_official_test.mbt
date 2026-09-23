@@ -41,8 +41,41 @@ fn format_bool(values : Array[Bool]) -> String {
 }
 
 ///|
-/// `None` means this process is not pointing at official libonnxruntime 1.30.0.
-fn official_runtime() -> @raw.Runtime? raise @raw.OrtError {
+/// Fail if a configured library is not the pinned official runtime.
+fn load_official_runtime(path : String) -> @raw.Runtime raise Failure {
+  let runtime = @raw.Runtime::load(path) catch {
+    error => fail("MOON_ORT_LIBRARY could not be loaded: \{error}")
+  }
+  let version = runtime.version() catch {
+    error => {
+      runtime.close() catch {
+        _ => ()
+      }
+      fail("MOON_ORT_LIBRARY version could not be read: \{error}")
+    }
+  }
+  let api = runtime.api_version() catch {
+    error => {
+      runtime.close() catch {
+        _ => ()
+      }
+      fail("MOON_ORT_LIBRARY API version could not be read: \{error}")
+    }
+  }
+  if version != "1.30.0" || api != 30 {
+    runtime.close() catch {
+      _ => ()
+    }
+    fail(
+      "MOON_ORT_LIBRARY version=\{version} api=\{api}; expected version=1.30.0 api=30",
+    )
+  }
+  runtime
+}
+
+///|
+/// `None` means MOON_ORT_LIBRARY was not configured; configured libraries must pass validation.
+fn official_runtime() -> @raw.Runtime? raise Failure {
   match @session.configured_library() {
     None => {
       println(
@@ -50,45 +83,67 @@ fn official_runtime() -> @raw.Runtime? raise @raw.OrtError {
       )
       None
     }
-    Some(path) => {
-      let runtime = @raw.Runtime::load(path) catch {
-        error => {
-          println(
-            "skip: MOON_ORT_LIBRARY did not load as official libonnxruntime 1.30.0; \{error}",
-          )
-          return None
-        }
-      }
-      let version = runtime.version() catch {
-        error => {
-          runtime.close() catch {
-            _ => ()
-          }
-          println(
-            "skip: MOON_ORT_LIBRARY did not report official libonnxruntime 1.30.0; \{error}",
-          )
-          return None
-        }
-      }
-      let api = runtime.api_version() catch {
-        error => {
-          runtime.close() catch {
-            _ => ()
-          }
-          println(
-            "skip: MOON_ORT_LIBRARY did not report official API 30; \{error}",
-          )
-          return None
-        }
-      }
-      if version != "1.30.0" || api != 30 {
-        println(
-          "skip: MOON_ORT_LIBRARY version=\{version} api=\{api} is not official libonnxruntime 1.30.0",
-        )
-        runtime.close()
-        return None
-      }
-      Some(runtime)
+    Some(path) => Some(load_official_runtime(path))
+  }
+}
+
+///|
+fn compile_fake_official(name : String) -> String raise Failure {
+  let path = "/tmp/moon-ort-official-\{name}.dylib"
+  let code = @test_support.compile_fake(name, path)
+  if code != 0 {
+    fail("c compiler failed to build \{name}: \{code}")
+  }
+  path
+}
+
+///|
+test "configured missing official runtime fails instead of skipping" {
+  try load_official_runtime("/no/such/libonnxruntime-moon-ort.dylib") catch {
+    Failure(message) => assert_true(message.contains("could not be loaded"))
+  } noraise {
+    _ => fail("expected configured library load to fail")
+  }
+}
+
+///|
+test "configured library without ORT symbols fails instead of skipping" {
+  let path = compile_fake_official("fake_no_symbol")
+  try load_official_runtime(path) catch {
+    Failure(message) => assert_true(message.contains("could not be loaded"))
+  } noraise {
+    runtime => {
+      runtime.close()
+      fail("expected library without ORT symbols to fail")
+    }
+  }
+}
+
+///|
+test "configured non-official runtime version fails instead of skipping" {
+  let path = compile_fake_official("fake_env")
+  try load_official_runtime(path) catch {
+    Failure(message) => {
+      assert_true(message.contains("fake-env-1.30.0"))
+      assert_true(message.contains("expected version=1.30.0 api=30"))
+    }
+  } noraise {
+    runtime => {
+      runtime.close()
+      fail("expected non-official runtime version to fail")
+    }
+  }
+}
+
+///|
+test "configured runtime API mismatch fails instead of skipping" {
+  let path = compile_fake_official("fake_api_mismatch")
+  try load_official_runtime(path) catch {
+    Failure(message) => assert_true(message.contains("could not be loaded"))
+  } noraise {
+    runtime => {
+      runtime.close()
+      fail("expected API mismatch to fail")
     }
   }
 }
