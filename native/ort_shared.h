@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include "moonbit.h"
@@ -31,7 +32,7 @@ typedef struct EnvPayload {
   int32_t actual_api;
   int32_t status_code;
   int32_t api_version;
-  int32_t children;
+  atomic_int_least32_t children;
   void *lib;
   const OrtApi *api;
   OrtEnv *env;

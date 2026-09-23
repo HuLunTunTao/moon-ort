@@ -87,3 +87,25 @@ test "session options are visible to CreateSession" {
   options.close()
   rt.close()
 }
+
+///|
+test "graph optimization raw codes are total" {
+  assert_true(
+    GraphOptimization::from_raw(@raw.graph_optimization_disable_all)
+    is Some(DisableAll),
+  )
+  assert_true(
+    GraphOptimization::from_raw(@raw.graph_optimization_basic) is Some(Basic),
+  )
+  assert_true(
+    GraphOptimization::from_raw(@raw.graph_optimization_extended)
+    is Some(Extended),
+  )
+  assert_true(
+    GraphOptimization::from_raw(@raw.graph_optimization_layout) is Some(Layout),
+  )
+  assert_true(
+    GraphOptimization::from_raw(@raw.graph_optimization_all) is Some(All),
+  )
+  assert_true(GraphOptimization::from_raw(4) is None)
+}

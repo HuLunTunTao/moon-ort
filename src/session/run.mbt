@@ -1,9 +1,10 @@
 ///|
 /// Failure from one synchronous `Session::run`.
 ///
-/// Callers match these variants. Raw `OrtError` and `TensorError` are mapped
-/// here so a run does not ask the caller to handle pointer-level errors.
+/// Callers match these variants. `Runtime` preserves structured dynamic-loading
+/// failures from `src/raw`; other raw and tensor failures are mapped here.
 pub suberror RunError {
+  Runtime(@raw.OrtError)
   WrongName(String)
   MissingInput(String)
   DuplicateName(String)
@@ -18,6 +19,7 @@ pub suberror RunError {
 ///|
 pub impl Show for RunError with fn output(self, logger) {
   match self {
+    Runtime(error) => logger.write_string(error.to_string())
     WrongName(name) => logger.write_string("wrong name; name=\{name}")
     MissingInput(name) => logger.write_string("missing input; name=\{name}")
     DuplicateName(name) => logger.write_string("duplicate name; name=\{name}")
@@ -41,31 +43,16 @@ fn lift_ort(error : @raw.OrtError) -> RunError {
     @raw.AlreadyClosed(api) => AlreadyClosed(api)
     @raw.InvalidArgument(message) => InvalidArgument(message)
     @raw.Status(code, message, api) => Status(code, message, api)
-    @raw.MissingLibrary(path, message) =>
-      InvalidArgument(
-        "missing library; attempted_paths=[" + path + "]; loader=" + message,
-      )
-    @raw.SymbolNotFound(path, message) =>
-      InvalidArgument(
-        "symbol not found; attempted_paths=[" + path + "]; loader=" + message,
-      )
-    @raw.ApiMismatch(path, message, expected, actual) =>
-      InvalidArgument(
-        "api mismatch; attempted_paths=[" +
-        path +
-        "]; expected_api=" +
-        expected.to_string() +
-        "; actual_api=" +
-        actual.to_string() +
-        "; loader=" +
-        message,
-      )
+    @raw.MissingLibrary(_, _)
+    | @raw.SymbolNotFound(_, _)
+    | @raw.ApiMismatch(_, _, _, _) => Runtime(error)
   }
 }
 
 ///|
 fn lift_tensor(error : @tensor.TensorError) -> RunError {
   match error {
+    @tensor.Runtime(error) => Runtime(error)
     @tensor.UseAfterClose(api) => UseAfterClose(api)
     @tensor.AlreadyClosed(api) => AlreadyClosed(api)
     @tensor.InvalidArgument(message) => InvalidArgument(message)

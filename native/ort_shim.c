@@ -150,20 +150,28 @@ static void release_open_env(EnvPayload *payload) {
 
 static void env_finalize(void *self) {
   EnvPayload *payload = (EnvPayload *)self;
-  if (payload->children > 0) {
-    abort();
+  if (atomic_load_explicit(&payload->children, memory_order_relaxed) > 0) {
+    fputs("moon-ort: leaking runtime with open handles during finalization\n", stderr);
+    return;
   }
   release_open_env(payload);
 }
 
 void moon_ort_pin_env(EnvPayload *env) {
-  env->children++;
+  atomic_fetch_add_explicit(&env->children, 1, memory_order_relaxed);
   moonbit_incref(env);
 }
 
 void moon_ort_unpin_env(EnvPayload *env) {
-  if (env->children > 0) {
-    env->children--;
+  int_least32_t children = atomic_load_explicit(&env->children, memory_order_relaxed);
+  while (children > 0 &&
+         !atomic_compare_exchange_weak_explicit(
+           &env->children,
+           &children,
+           children - 1,
+           memory_order_relaxed,
+           memory_order_relaxed
+         )) {
   }
   moonbit_decref(env);
 }
@@ -200,6 +208,7 @@ void moon_ort_write_status(
 static EnvPayload *new_payload(void) {
   EnvPayload *payload = moonbit_make_external_object(env_finalize, (uint32_t)sizeof(EnvPayload));
   memset(payload, 0, sizeof(*payload));
+  atomic_init(&payload->children, 0);
   payload->code = MOON_ORT_OK;
   payload->state = MOON_ORT_STATE_FAILED;
   payload->expected_api = ORT_API_VERSION;
@@ -420,7 +429,7 @@ int32_t moon_ort_close(EnvPayload *payload) {
   if (payload->state != MOON_ORT_STATE_OPEN || payload->env == NULL) {
     return MOON_ORT_ALREADY_CLOSED;
   }
-  if (payload->children > 0) {
+  if (atomic_load_explicit(&payload->children, memory_order_relaxed) > 0) {
     copy_cstr(payload->message, sizeof(payload->message), "runtime has open handles");
     return MOON_ORT_BUSY;
   }

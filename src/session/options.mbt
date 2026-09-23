@@ -24,21 +24,21 @@ fn GraphOptimization::to_raw(self : GraphOptimization) -> Int {
 ///|
 /// Map a raw graph-optimization code.
 ///
-/// Only the five levels the raw setter accepts are valid. Any other code aborts.
-/// Callers that configure a session pass the enum itself.
-pub fn GraphOptimization::from_raw(code : Int) -> GraphOptimization {
+/// Only the five levels the raw setter accepts are valid. Unknown codes return
+/// `None`; callers that configure a session pass the enum itself.
+pub fn GraphOptimization::from_raw(code : Int) -> GraphOptimization? {
   if code == @raw.graph_optimization_disable_all {
-    DisableAll
+    Some(DisableAll)
   } else if code == @raw.graph_optimization_basic {
-    Basic
+    Some(Basic)
   } else if code == @raw.graph_optimization_extended {
-    Extended
+    Some(Extended)
   } else if code == @raw.graph_optimization_layout {
-    Layout
+    Some(Layout)
   } else if code == @raw.graph_optimization_all {
-    All
+    Some(All)
   } else {
-    abort("graph optimization level is invalid")
+    None
   }
 }
 

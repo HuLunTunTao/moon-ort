@@ -62,10 +62,11 @@ pub struct Tensor {
 ///|
 /// Structured tensor failure.
 ///
-/// `src/raw` exports `OrtError` as a read-only type, so this package cannot
-/// construct those variants. Raw failures are mapped into this error. The
-/// `api` string is the tensor method the caller used.
+/// `Runtime` preserves structured dynamic-loading failures from `src/raw`.
+/// Other raw failures are mapped into tensor-specific variants. The `api`
+/// string is the tensor method the caller used.
 pub suberror TensorError {
+  Runtime(@raw.OrtError)
   Status(Int, String, String)
   AlreadyClosed(String)
   UseAfterClose(String)
@@ -75,6 +76,7 @@ pub suberror TensorError {
 ///|
 pub impl Show for TensorError with fn output(self, logger) {
   match self {
+    Runtime(error) => logger.write_string(error.to_string())
     Status(code, message, api) =>
       logger.write_string(
         "ort status; api=\{api}; code=\{code}; message=\{message}",
@@ -93,25 +95,9 @@ fn lift(error : @raw.OrtError, api : String) -> TensorError {
     @raw.AlreadyClosed(_) => AlreadyClosed(api)
     @raw.InvalidArgument(message) => InvalidArgument(message)
     @raw.Status(code, message, status_api) => Status(code, message, status_api)
-    @raw.MissingLibrary(path, message) =>
-      InvalidArgument(
-        "missing library; attempted_paths=[" + path + "]; loader=" + message,
-      )
-    @raw.SymbolNotFound(path, message) =>
-      InvalidArgument(
-        "symbol not found; attempted_paths=[" + path + "]; loader=" + message,
-      )
-    @raw.ApiMismatch(path, message, expected, actual) =>
-      InvalidArgument(
-        "api mismatch; attempted_paths=[" +
-        path +
-        "]; expected_api=" +
-        expected.to_string() +
-        "; actual_api=" +
-        actual.to_string() +
-        "; loader=" +
-        message,
-      )
+    @raw.MissingLibrary(_, _)
+    | @raw.SymbolNotFound(_, _)
+    | @raw.ApiMismatch(_, _, _, _) => Runtime(error)
   }
 }
 
