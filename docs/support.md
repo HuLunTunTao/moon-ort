@@ -8,8 +8,8 @@
 | Linux amd64 / CPU | 原生 CI 已配置，待首次远程运行确认 |
 | Windows | 未支持 |
 
-`moon-ort` 使用官方 ONNX Runtime 1.30.0 C API，并以动态库方式加载。它不承诺静态链接、跨平台
-二进制分发或自动下载运行时。
+`moon-ort` 使用官方 ONNX Runtime 1.30.0 C API，并以动态库方式加载。
+它不提供静态链接、也不包含ONNX运行时。使用需要提前在目标设备上自行部署ONNX运行时。
 
 ## 已支持的能力
 
