@@ -3,7 +3,7 @@
 `moon-ort` 是 MoonBit 的 ONNX Runtime CPU 推理绑定。它通过官方 C API 在运行时加载
 ONNX Runtime 1.30.0；包本身不携带、下载或链接 ONNX Runtime 二进制。
 
-当前正式支持 macOS arm64 / CPU。`f32`、`i64` 与 `bool` 稠密张量可以用于从本地 ONNX
+当前已验证 macOS arm64 / CPU；Linux amd64 的原生 CI 已配置，待首次远程运行确认。`f32`、`i64` 与 `bool` 稠密张量可以用于从本地 ONNX
 模型创建会话、查询模型元数据并执行同步的多输入、多输出推理。
 
 ## 快速开始
@@ -43,7 +43,7 @@ moon run examples/add_f32 -- "$MOON_ORT_LIBRARY" testdata/add_f32.onnx
 
 ## 当前限制
 
-首个版本不支持 Linux、Windows、GPU 执行提供程序、训练、I/O Binding、字符串张量或
+首个版本不支持 Windows、GPU 执行提供程序、训练、I/O Binding、字符串张量或
 ONNX Runtime 二进制分发。详见 [支持说明](docs/support.md)。
 
 ## 许可证

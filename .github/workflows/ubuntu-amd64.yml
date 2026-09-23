@@ -1,0 +1,50 @@
+# GitHub 托管的 Ubuntu x64 runner 运行原生 CPU 集成测试。
+# 作业下载官方 ONNX Runtime 动态库；仓库与 MoonCakes 包均不分发该二进制。
+# 不运行 Laya，也不缓存模型权重或 tokenizer。
+
+name: ubuntu-amd64
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ubuntu-amd64-native:
+    name: Ubuntu amd64 native test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit 0.1.20260915
+        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260915
+
+      - name: Put moon on PATH
+        run: echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Download ONNX Runtime 1.30.0 linux x64
+        env:
+          LC_ALL: C
+          LANG: C
+        run: |
+          set -euo pipefail
+          archive="onnxruntime-linux-x64-1.30.0.tgz"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/${archive}"
+          dest="${GITHUB_WORKSPACE}/.deps/onnxruntime"
+          mkdir -p "$dest"
+          curl -fsSL --retry 3 -o "${dest}/${archive}" "$url"
+          echo "a5ed5a3cac51fbb2e90da632ae43d19212faaa20e76484e62bcb7c23ddb3b3fd  ${dest}/${archive}" | sha256sum -c -
+          tar -xzf "${dest}/${archive}" -C "$dest"
+          rm -f "${dest}/${archive}"
+          lib="${dest}/onnxruntime-linux-x64-1.30.0/lib/libonnxruntime.so.1.30.0"
+          test -f "$lib"
+          echo "MOON_ORT_LIBRARY=${lib}" >> "$GITHUB_ENV"
+
+      - name: moon fmt --check
+        run: moon fmt --check
+
+      - name: moon check --deny-warn
+        run: moon check --deny-warn
+
+      - name: moon test --deny-warn
+        run: moon test --deny-warn

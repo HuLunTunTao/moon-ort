@@ -5,7 +5,7 @@
 | 平台 | 状态 |
 |---|---|
 | macOS arm64 / CPU | 已验证 |
-| Linux | 未支持 |
+| Linux amd64 / CPU | 原生 CI 已配置，待首次远程运行确认 |
 | Windows | 未支持 |
 
 `moon-ort` 使用官方 ONNX Runtime 1.30.0 C API，并以动态库方式加载。它不承诺静态链接、跨平台
