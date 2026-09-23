@@ -43,7 +43,7 @@ fn format_bool(values : Array[Bool]) -> String {
 ///|
 /// `None` means this process is not pointing at official libonnxruntime 1.30.0.
 fn official_runtime() -> @raw.Runtime? raise @raw.OrtError {
-  match configured_library() {
+  match @session.configured_library() {
     None => {
       println(
         "skip: MOON_ORT_LIBRARY is not set; official libonnxruntime 1.30.0 was not run",
@@ -109,12 +109,12 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
   match official_runtime() {
     None => ()
     Some(rt) => {
-      let options = SessionOptions::create(rt)
+      let options = @session.SessionOptions::create(rt)
       options.set_intra_op_threads(1)
       options.set_inter_op_threads(1)
       options.set_execution_mode(Sequential)
       options.set_graph_optimization_level(All)
-      let add = Session::create(rt, options, "testdata/add_f32.onnx")
+      let add = @session.Session::create(rt, options, "testdata/add_f32.onnx")
       let add_input = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])
       let add_out = add.run(["input"], [add_input], ["output"])
       let add_values = add_out[0].read_f32()
@@ -126,7 +126,7 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       close_outputs(add_out)
       add_input.close()
       add.close()
-      let sum_session = Session::create(
+      let sum_session = @session.Session::create(
         rt, options, "testdata/two_inputs_i64.onnx",
       )
       let left = @tensor.Tensor::from_i64(rt, [2L], [-5L, -3L])
@@ -141,7 +141,7 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       left.close()
       right.close()
       sum_session.close()
-      let gate = Session::create(
+      let gate = @session.Session::create(
         rt, options, "testdata/two_outputs_f32_bool.onnx",
       )
       let scores = @tensor.Tensor::from_f32(rt, [2L], [-1.5, 0.25])
@@ -156,7 +156,7 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       close_outputs(gate_out)
       scores.close()
       gate.close()
-      let dynamic = Session::create(
+      let dynamic = @session.Session::create(
         rt, options, "testdata/dynamic_identity_f32.onnx",
       )
       let batch1 = @tensor.Tensor::from_f32(rt, [1L, 2L], [1.0, -2.0])

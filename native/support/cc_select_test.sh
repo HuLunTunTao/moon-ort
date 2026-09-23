@@ -10,6 +10,10 @@ trap 'rm -rf "$root" "$cc_only" "$with_gcc"' EXIT HUP INT TERM
 mkdir -p "$cc_only" "$with_gcc"
 ln -s /usr/bin/cc "$cc_only/cc"
 ln -s /usr/bin/cc "$with_gcc/cc"
+assembler=$(command -v as)
+ln -s "$assembler" "$cc_only/as"
+linker=$(command -v ld)
+ln -s "$linker" "$cc_only/ld"
 printf '%s\n' '#!/bin/sh' 'exit 0' > "$with_gcc/gcc-15"
 chmod +x "$with_gcc/gcc-15"
 

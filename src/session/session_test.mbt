@@ -12,8 +12,8 @@ fn compile_fake(name : String) -> String raise Failure {
 test "session loads a model and closes once" {
   let lib = compile_fake("fake_session")
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, "ok.onnx")
+  let options = @session.SessionOptions::create(rt)
+  let session = @session.Session::create(rt, options, "ok.onnx")
   inspect(session.input_count(), content="2")
   options.close()
   inspect(session.input_count(), content="2")
@@ -37,7 +37,7 @@ test "session loads a model and closes once" {
 test "session options are visible to CreateSession" {
   let lib = compile_fake("fake_session")
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
+  let options = @session.SessionOptions::create(rt)
   options.set_intra_op_threads(3)
   options.set_inter_op_threads(4)
   options.set_execution_mode(Parallel)
@@ -45,7 +45,7 @@ test "session options are visible to CreateSession" {
   options.set_execution_mode(Sequential)
   assert_true(options.execution_mode() == Sequential)
   options.set_execution_mode(Parallel)
-  let levels : Array[GraphOptimization] = [
+  let levels : Array[@session.GraphOptimization] = [
     DisableAll,
     Basic,
     Extended,
@@ -61,7 +61,7 @@ test "session options are visible to CreateSession" {
       Layout => "3"
       All => "99"
     }
-    try Session::create(rt, options, "options-probe.onnx") catch {
+    try @session.Session::create(rt, options, "options-probe.onnx") catch {
       @raw.Status(code, message, api) => {
         inspect(code, content="1")
         inspect(api, content="CreateSession")
@@ -77,7 +77,7 @@ test "session options are visible to CreateSession" {
   options.set_execution_mode(Sequential)
   options.set_graph_optimization_level(DisableAll)
   assert_true(options.execution_mode() == Sequential)
-  try Session::create(rt, options, "options-probe.onnx") catch {
+  try @session.Session::create(rt, options, "options-probe.onnx") catch {
     @raw.Status(_, message, _) =>
       inspect(message, content="intra=0;inter=0;opt=0;mode=0")
     other => fail(other.to_string())
@@ -91,21 +91,24 @@ test "session options are visible to CreateSession" {
 ///|
 test "graph optimization raw codes are total" {
   assert_true(
-    GraphOptimization::from_raw(@raw.graph_optimization_disable_all)
+    @session.GraphOptimization::from_raw(@raw.graph_optimization_disable_all)
     is Some(DisableAll),
   )
   assert_true(
-    GraphOptimization::from_raw(@raw.graph_optimization_basic) is Some(Basic),
+    @session.GraphOptimization::from_raw(@raw.graph_optimization_basic)
+    is Some(Basic),
   )
   assert_true(
-    GraphOptimization::from_raw(@raw.graph_optimization_extended)
+    @session.GraphOptimization::from_raw(@raw.graph_optimization_extended)
     is Some(Extended),
   )
   assert_true(
-    GraphOptimization::from_raw(@raw.graph_optimization_layout) is Some(Layout),
+    @session.GraphOptimization::from_raw(@raw.graph_optimization_layout)
+    is Some(Layout),
   )
   assert_true(
-    GraphOptimization::from_raw(@raw.graph_optimization_all) is Some(All),
+    @session.GraphOptimization::from_raw(@raw.graph_optimization_all)
+    is Some(All),
   )
-  assert_true(GraphOptimization::from_raw(4) is None)
+  assert_true(@session.GraphOptimization::from_raw(4) is None)
 }

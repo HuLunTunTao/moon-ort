@@ -2,8 +2,8 @@
 test "session reads static and dynamic shapes and model metadata" {
   let lib = compile_fake("fake_session")
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, "ok.onnx")
+  let options = @session.SessionOptions::create(rt)
+  let session = @session.Session::create(rt, options, "ok.onnx")
   options.close()
   inspect(session.input_count(), content="2")
   inspect(session.output_count(), content="1")
@@ -36,9 +36,9 @@ test "session reads static and dynamic shapes and model metadata" {
     #|output[0] name=scores dtype=bool rank=1 shape=2
     #|
   inspect(session.contract_text("abc"), content=expected)
-  let unnamed : Dimension = Symbolic("")
+  let unnamed : @session.Dimension = Symbolic("")
   inspect(unnamed.text(), content="?")
-  inspect(DType::from_code(2).text(), content="other(2)")
+  inspect(@session.DType::from_code(2).text(), content="other(2)")
   session.close()
   rt.close()
 }

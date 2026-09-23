@@ -37,6 +37,9 @@ pub impl Show for RunError with fn output(self, logger) {
 }
 
 ///|
+pub extend RunError with Show::{to_string, output}
+
+///|
 fn lift_ort(error : @raw.OrtError) -> RunError {
   match error {
     @raw.UseAfterClose(api) => UseAfterClose(api)

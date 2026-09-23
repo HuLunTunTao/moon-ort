@@ -1,9 +1,9 @@
 ///|
 test "session handles reject a second close and later use" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, "ok.onnx")
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  let session = @raw.Session::create(rt, options, "ok.onnx")
   session.close()
   try session.input_count() catch {
     UseAfterClose(api) => inspect(api, content="Session::input_count")
@@ -37,15 +37,15 @@ test "session handles reject a second close and later use" {
 ///|
 test "session create rejects empty path missing file and foreign options" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  try Session::create(rt, options, "") catch {
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  try @raw.Session::create(rt, options, "") catch {
     InvalidArgument(message) => inspect(message, content="model path is empty")
     other => fail(other.to_string())
   } noraise {
     _ => fail("expected InvalidArgument")
   }
-  try Session::create(rt, options, "missing.onnx") catch {
+  try @raw.Session::create(rt, options, "missing.onnx") catch {
     Status(code, message, api) => {
       inspect(code, content="3")
       inspect(api, content="CreateSession")
@@ -55,8 +55,8 @@ test "session create rejects empty path missing file and foreign options" {
   } noraise {
     _ => fail("expected Status")
   }
-  let other = Runtime::load(lib)
-  try Session::create(other, options, "ok.onnx") catch {
+  let other = @raw.Runtime::load(lib)
+  try @raw.Session::create(other, options, "ok.onnx") catch {
     InvalidArgument(message) =>
       inspect(message, content="session options belong to a different runtime")
     other => fail(other.to_string())
@@ -64,14 +64,14 @@ test "session create rejects empty path missing file and foreign options" {
     _ => fail("expected InvalidArgument")
   }
   options.close()
-  try Session::create(rt, options, "ok.onnx") catch {
+  try @raw.Session::create(rt, options, "ok.onnx") catch {
     UseAfterClose(api) => inspect(api, content="Session::create")
     other => fail(other.to_string())
   } noraise {
     _ => fail("expected UseAfterClose")
   }
   rt.close()
-  try SessionOptions::create(rt) catch {
+  try @raw.SessionOptions::create(rt) catch {
     UseAfterClose(api) => inspect(api, content="SessionOptions::create")
     other => fail(other.to_string())
   } noraise {
@@ -83,8 +83,8 @@ test "session create rejects empty path missing file and foreign options" {
 ///|
 test "session options and indexes reject invalid arguments" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
   try options.set_intra_op_threads(-1) catch {
     InvalidArgument(message) =>
       inspect(message, content="intra-op thread count is negative")
@@ -106,7 +106,7 @@ test "session options and indexes reject invalid arguments" {
   } noraise {
     _ => fail("expected InvalidArgument")
   }
-  let session = Session::create(rt, options, "ok.onnx")
+  let session = @raw.Session::create(rt, options, "ok.onnx")
   try session.input_name(-1) catch {
     InvalidArgument(message) =>
       inspect(message, content="input index is negative")
@@ -143,10 +143,10 @@ test "session options and indexes reject invalid arguments" {
 ///|
 test "tensor handles reject a second close and later use" {
   let lib = compile_fake("fake_tensor")
-  let rt = Runtime::load(lib)
-  let value = Value::create_cpu_tensor(
+  let rt = @raw.Runtime::load(lib)
+  let value = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([1L]),
     b"\x00\x00\x80\x3f",
   )
@@ -165,9 +165,9 @@ test "tensor handles reject a second close and later use" {
   }
   rt.close()
   try
-    Value::create_cpu_tensor(
+    @raw.Value::create_cpu_tensor(
       rt,
-      dtype_f32,
+      @raw.dtype_f32,
       make_shape([1L]),
       b"\x00\x00\x80\x3f",
     )
@@ -182,8 +182,10 @@ test "tensor handles reject a second close and later use" {
 ///|
 test "tensor create checks shape bytes and dtype" {
   let lib = compile_fake("fake_tensor")
-  let rt = Runtime::load(lib)
-  try Value::create_cpu_tensor(rt, dtype_f32, make_shape([-1L]), b"") catch {
+  let rt = @raw.Runtime::load(lib)
+  try
+    @raw.Value::create_cpu_tensor(rt, @raw.dtype_f32, make_shape([-1L]), b"")
+  catch {
     InvalidArgument(message) =>
       inspect(message, content="tensor dimension is negative")
     other => fail(other.to_string())
@@ -191,7 +193,12 @@ test "tensor create checks shape bytes and dtype" {
     _ => fail("expected InvalidArgument")
   }
   try
-    Value::create_cpu_tensor(rt, dtype_f32, make_shape([1L]), b"\x00\x00")
+    @raw.Value::create_cpu_tensor(
+      rt,
+      @raw.dtype_f32,
+      make_shape([1L]),
+      b"\x00\x00",
+    )
   catch {
     InvalidArgument(message) =>
       inspect(message, content="tensor byte count does not match data")
@@ -199,7 +206,7 @@ test "tensor create checks shape bytes and dtype" {
   } noraise {
     _ => fail("expected InvalidArgument")
   }
-  try Value::create_cpu_tensor(rt, 2, make_shape([1L]), b"") catch {
+  try @raw.Value::create_cpu_tensor(rt, 2, make_shape([1L]), b"") catch {
     InvalidArgument(message) =>
       inspect(message, content="tensor element type is not f32, i64, or bool")
     other => fail(other.to_string())
@@ -207,7 +214,12 @@ test "tensor create checks shape bytes and dtype" {
     _ => fail("expected InvalidArgument")
   }
   try
-    Value::create_cpu_tensor(rt, dtype_bool, make_shape([1L]), b"\x02")
+    @raw.Value::create_cpu_tensor(
+      rt,
+      @raw.dtype_bool,
+      make_shape([1L]),
+      b"\x02",
+    )
   catch {
     InvalidArgument(message) =>
       inspect(message, content="bool tensor byte is not 0 or 1")
@@ -216,9 +228,9 @@ test "tensor create checks shape bytes and dtype" {
     _ => fail("expected InvalidArgument")
   }
   try
-    Value::create_cpu_tensor(
+    @raw.Value::create_cpu_tensor(
       rt,
-      dtype_i64,
+      @raw.dtype_i64,
       make_shape([3037000500L, 3037000500L]),
       b"",
     )
@@ -230,7 +242,12 @@ test "tensor create checks shape bytes and dtype" {
     _ => fail("expected InvalidArgument")
   }
   try
-    Value::create_cpu_tensor(rt, dtype_f32, make_shape([536870912L]), b"")
+    @raw.Value::create_cpu_tensor(
+      rt,
+      @raw.dtype_f32,
+      make_shape([536870912L]),
+      b"",
+    )
   catch {
     InvalidArgument(message) =>
       inspect(message, content="tensor byte count overflows")
@@ -242,7 +259,9 @@ test "tensor create checks shape bytes and dtype" {
   for i = 0; i < 52; i = i + 1 {
     failed = failed + b"\x00"
   }
-  try Value::create_cpu_tensor(rt, dtype_f32, make_shape([13L]), failed) catch {
+  try
+    @raw.Value::create_cpu_tensor(rt, @raw.dtype_f32, make_shape([13L]), failed)
+  catch {
     Status(code, message, api) => {
       inspect(code, content="1")
       inspect(api, content="CreateTensorAsOrtValue")

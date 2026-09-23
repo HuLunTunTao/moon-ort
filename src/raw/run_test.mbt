@@ -11,10 +11,10 @@ let add_f32_output : Bytes = b"\x00\x00\x00\x40\x00\x00\x60\xc0"
 fn open_fake_run(
   lib : String,
   path : String,
-) -> (Runtime, Session) raise OrtError {
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, path)
+) -> (@raw.Runtime, @raw.Session) raise @raw.OrtError {
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  let session = @raw.Session::create(rt, options, path)
   options.close()
   (rt, session)
 }
@@ -24,14 +24,14 @@ test "sync run returns the fake add_f32 vector" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
   inspect(session.input_name(0), content="input")
   inspect(session.output_name(0), content="output")
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   let input_names : FixedArray[String] = [session.input_name(0)]
-  let inputs : FixedArray[Value] = [input]
+  let inputs : FixedArray[@raw.Value] = [input]
   let output_names : FixedArray[String] = [session.output_name(0)]
   let outputs = session.run(input_names, inputs, output_names)
   inspect(outputs.length(), content="1")
@@ -57,13 +57,13 @@ test "sync run returns the fake add_f32 vector" {
 ///|
 test "run rejects a wrong input or output name" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
-  let inputs : FixedArray[Value] = [input]
+  let inputs : FixedArray[@raw.Value] = [input]
   let output_names : FixedArray[String] = [session.output_name(0)]
   let wrong_input : FixedArray[String] = ["features"]
   try session.run(wrong_input, inputs, output_names) catch {
@@ -90,14 +90,14 @@ test "run rejects a wrong input or output name" {
 ///|
 test "run rejects an input count mismatch" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   let input_names : FixedArray[String] = ["input", "input"]
-  let inputs : FixedArray[Value] = [input]
+  let inputs : FixedArray[@raw.Value] = [input]
   let output_names : FixedArray[String] = ["output"]
   try session.run(input_names, inputs, output_names) catch {
     InvalidArgument(message) =>
@@ -114,14 +114,14 @@ test "run rejects an input count mismatch" {
 ///|
 test "run rejects a closed session" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   let input_names : FixedArray[String] = ["input"]
-  let inputs : FixedArray[Value] = [input]
+  let inputs : FixedArray[@raw.Value] = [input]
   let output_names : FixedArray[String] = ["output"]
   session.close()
   try session.run(input_names, inputs, output_names) catch {
@@ -139,14 +139,14 @@ test "run rejects a closed value" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
   let input_names : FixedArray[String] = ["input"]
   let output_names : FixedArray[String] = ["output"]
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   input.close()
-  let closed : FixedArray[Value] = [input]
+  let closed : FixedArray[@raw.Value] = [input]
   try session.run(input_names, closed, output_names) catch {
     UseAfterClose(api) => inspect(api, content="Session::run")
     other => fail(other.to_string())
@@ -160,19 +160,19 @@ test "run rejects a closed value" {
 ///|
 test "run rejects a value from another runtime" {
   let lib = compile_fake("fake_run")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, "ok.onnx")
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  let session = @raw.Session::create(rt, options, "ok.onnx")
   options.close()
-  let other = Runtime::load(lib)
-  let foreign = Value::create_cpu_tensor(
+  let other = @raw.Runtime::load(lib)
+  let foreign = @raw.Value::create_cpu_tensor(
     other,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   let input_names : FixedArray[String] = ["input"]
-  let inputs : FixedArray[Value] = [foreign]
+  let inputs : FixedArray[@raw.Value] = [foreign]
   let output_names : FixedArray[String] = ["output"]
   try session.run(input_names, inputs, output_names) catch {
     InvalidArgument(message) =>
@@ -190,14 +190,14 @@ test "run rejects a value from another runtime" {
 ///|
 test "failed run releases outputs created before failure" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "fail-run.onnx")
-  let input = Value::create_cpu_tensor(
+  let input = @raw.Value::create_cpu_tensor(
     rt,
-    dtype_f32,
+    @raw.dtype_f32,
     make_shape([2L]),
     add_f32_input,
   )
   let input_names : FixedArray[String] = [session.input_name(0)]
-  let inputs : FixedArray[Value] = [input]
+  let inputs : FixedArray[@raw.Value] = [input]
   let output_names : FixedArray[String] = [session.output_name(0)]
   try session.run(input_names, inputs, output_names) catch {
     Status(code, message, api) => {

@@ -2,7 +2,7 @@
 test "illegal thread counts are rejected and not stored" {
   let lib = compile_fake("fake_session")
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
+  let options = @session.SessionOptions::create(rt)
   options.set_intra_op_threads(3)
   options.set_inter_op_threads(4)
   options.set_execution_mode(Parallel)
@@ -21,7 +21,7 @@ test "illegal thread counts are rejected and not stored" {
   } noraise {
     _ => fail("expected InvalidArgument")
   }
-  try Session::create(rt, options, "options-probe.onnx") catch {
+  try @session.Session::create(rt, options, "options-probe.onnx") catch {
     @raw.Status(_, message, _) =>
       inspect(message, content="intra=3;inter=4;opt=99;mode=1")
     other => fail(other.to_string())
@@ -49,15 +49,15 @@ test "illegal thread counts are rejected and not stored" {
 test "missing model and empty path are structured errors" {
   let lib = compile_fake("fake_session")
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  try Session::create(rt, options, "") catch {
+  let options = @session.SessionOptions::create(rt)
+  try @session.Session::create(rt, options, "") catch {
     @raw.InvalidArgument(message) =>
       inspect(message, content="model path is empty")
     other => fail(other.to_string())
   } noraise {
     _ => fail("expected InvalidArgument")
   }
-  try Session::create(rt, options, "missing.onnx") catch {
+  try @session.Session::create(rt, options, "missing.onnx") catch {
     @raw.Status(code, message, api) => {
       inspect(code, content="3")
       inspect(api, content="CreateSession")
@@ -67,7 +67,7 @@ test "missing model and empty path are structured errors" {
   } noraise {
     _ => fail("expected Status")
   }
-  let session = Session::create(rt, options, "ok.onnx")
+  let session = @session.Session::create(rt, options, "ok.onnx")
   try session.input_name(-1) catch {
     @raw.InvalidArgument(message) =>
       inspect(message, content="input index is negative")
@@ -104,7 +104,7 @@ test "missing model and empty path are structured errors" {
     _ => fail("expected UseAfterClose")
   }
   options.close()
-  try Session::create(rt, options, "ok.onnx") catch {
+  try @session.Session::create(rt, options, "ok.onnx") catch {
     @raw.UseAfterClose(api) => inspect(api, content="Session::create")
     other => fail(other.to_string())
   } noraise {

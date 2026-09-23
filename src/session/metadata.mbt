@@ -11,6 +11,9 @@ pub(all) enum DType {
 } derive(Eq)
 
 ///|
+pub extend DType with Eq::{not_equal, equal}
+
+///|
 pub fn DType::from_code(code : Int) -> DType {
   if code == @raw.dtype_f32 {
     Float32
@@ -41,6 +44,9 @@ pub(all) enum Dimension {
   Fixed(Int64)
   Symbolic(String)
 } derive(Eq)
+
+///|
+pub extend Dimension with Eq::{not_equal, equal}
 
 ///|
 pub fn Dimension::text(self : Dimension) -> String {

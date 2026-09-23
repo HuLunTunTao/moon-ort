@@ -2,10 +2,10 @@
 fn open_run(
   lib : String,
   path : String,
-) -> (@raw.Runtime, Session) raise @raw.OrtError {
+) -> (@raw.Runtime, @session.Session) raise @raw.OrtError {
   let rt = @raw.Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, path)
+  let options = @session.SessionOptions::create(rt)
+  let session = @session.Session::create(rt, options, path)
   options.close()
   (rt, session)
 }

@@ -72,7 +72,7 @@ fn assert_shape(
 
 ///|
 fn expect_invalid(
-  action : () -> Tensor raise TensorError,
+  action : () -> @tensor.Tensor raise @tensor.TensorError,
   message : String,
 ) -> Unit raise Failure {
   try action() catch {
@@ -90,7 +90,12 @@ test "fixture f32 i64 and bool values round-trip" {
   let rt = @raw.Runtime::load(compile_fake_tensor())
   let input : Array[Float] = [0.5, -1.5]
   let input_shape = [2L]
-  let add_input = Tensor::from_f32(rt, input_shape, input, expected_rank=1)
+  let add_input = @tensor.Tensor::from_f32(
+    rt,
+    input_shape,
+    input,
+    expected_rank=1,
+  )
   inspect(add_input.dtype(), content="f32")
   inspect(add_input.rank(), content="1")
   inspect(add_input.element_count(), content="2")
@@ -101,25 +106,45 @@ test "fixture f32 i64 and bool values round-trip" {
   input_shape[0] = 9L
   assert_f32(add_input.read_f32(), [0.5, -1.5])
   assert_shape(add_input.shape(), [2L])
-  let add_output = Tensor::from_f32(rt, [2L], [2.0, -3.5], expected_rank=1)
+  let add_output = @tensor.Tensor::from_f32(
+    rt,
+    [2L],
+    [2.0, -3.5],
+    expected_rank=1,
+  )
   assert_f32(add_output.read_f32(), [2.0, -3.5])
-  let left = Tensor::from_i64(rt, [2L], [-5L, -3L], expected_rank=1)
-  let right = Tensor::from_i64(rt, [2L], [-3L, -1L], expected_rank=1)
-  let sum = Tensor::from_i64(rt, [2L], [-8L, -4L], expected_rank=1)
+  let left = @tensor.Tensor::from_i64(rt, [2L], [-5L, -3L], expected_rank=1)
+  let right = @tensor.Tensor::from_i64(rt, [2L], [-3L, -1L], expected_rank=1)
+  let sum = @tensor.Tensor::from_i64(rt, [2L], [-8L, -4L], expected_rank=1)
   assert_i64(left.read_i64(), [-5L, -3L])
   assert_i64(right.read_i64(), [-3L, -1L])
   assert_i64(sum.read_i64(), [-8L, -4L])
   inspect(left.byte_count(), content="16")
-  let scores = Tensor::from_f32(rt, [2L], [-1.5, 0.25], expected_rank=1)
-  let shifted = Tensor::from_f32(rt, [2L], [-0.5, 1.25], expected_rank=1)
-  let positive = Tensor::from_bool(rt, [2L], [false, true], expected_rank=1)
+  let scores = @tensor.Tensor::from_f32(rt, [2L], [-1.5, 0.25], expected_rank=1)
+  let shifted = @tensor.Tensor::from_f32(
+    rt,
+    [2L],
+    [-0.5, 1.25],
+    expected_rank=1,
+  )
+  let positive = @tensor.Tensor::from_bool(
+    rt,
+    [2L],
+    [false, true],
+    expected_rank=1,
+  )
   assert_f32(scores.read_f32(), [-1.5, 0.25])
   assert_f32(shifted.read_f32(), [-0.5, 1.25])
   assert_bool(positive.read_bool(), [false, true])
   inspect(positive.dtype(), content="bool")
   inspect(positive.byte_count(), content="2")
-  let batch1 = Tensor::from_f32(rt, [1L, 2L], [1.0, -2.0], expected_rank=2)
-  let batch3 = Tensor::from_f32(
+  let batch1 = @tensor.Tensor::from_f32(
+    rt,
+    [1L, 2L],
+    [1.0, -2.0],
+    expected_rank=2,
+  )
+  let batch3 = @tensor.Tensor::from_f32(
     rt,
     [3L, 2L],
     [2.0, 0.0, -0.5, 2.0, 2.0, -1.5],
@@ -147,20 +172,20 @@ test "fixture f32 i64 and bool values round-trip" {
 ///|
 test "scalar f32 and a zero dimension use the runtime shape" {
   let rt = @raw.Runtime::load(compile_fake_tensor())
-  let scalar = Tensor::from_f32(rt, [], [0.5])
+  let scalar = @tensor.Tensor::from_f32(rt, [], [0.5])
   inspect(scalar.rank(), content="0")
   inspect(scalar.element_count(), content="1")
   inspect(scalar.byte_count(), content="4")
   assert_shape(scalar.shape(), [])
   assert_f32(scalar.read_f32(), [0.5])
-  let ranked = Tensor::from_f32(rt, [], [0.5], expected_rank=0)
+  let ranked = @tensor.Tensor::from_f32(rt, [], [0.5], expected_rank=0)
   assert_f32(ranked.read_f32(), [0.5])
-  let empty = Tensor::from_f32(rt, [2L, 0L, 3L], [], expected_rank=3)
+  let empty = @tensor.Tensor::from_f32(rt, [2L, 0L, 3L], [], expected_rank=3)
   inspect(empty.element_count(), content="0")
   inspect(empty.byte_count(), content="0")
   assert_shape(empty.shape(), [2L, 0L, 3L])
   assert_f32(empty.read_f32(), [])
-  let vector = Tensor::from_f32(rt, [2L], [0.5, -1.5])
+  let vector = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])
   inspect(vector.rank(), content="1")
   scalar.close()
   ranked.close()
@@ -176,35 +201,44 @@ test "wrong rank empty shape byte count and dtype are structured errors" {
   let one : Array[Float] = [0.0]
   let pair : Array[Float] = [0.0, 0.0]
   expect_invalid(
-    () => Tensor::from_f32(rt, [2L], pair, expected_rank=2),
+    () => @tensor.Tensor::from_f32(rt, [2L], pair, expected_rank=2),
     "tensor rank does not match",
   )
   expect_invalid(
-    () => Tensor::from_f32(rt, [], one, expected_rank=1),
+    () => @tensor.Tensor::from_f32(rt, [], one, expected_rank=1),
     "tensor shape is empty",
   )
   expect_invalid(
-    () => Tensor::from_f32(rt, [2L], one, expected_rank=1),
+    () => @tensor.Tensor::from_f32(rt, [2L], one, expected_rank=1),
     "tensor byte count does not match data",
   )
   expect_invalid(
-    () => Tensor::from_i64(rt, [-1L], [], expected_rank=1),
+    () => @tensor.Tensor::from_i64(rt, [-1L], [], expected_rank=1),
     "tensor dimension is negative",
   )
   expect_invalid(
-    () => Tensor::from_i64(rt, [3037000500L, 3037000500L], [], expected_rank=2),
+    () => {
+      @tensor.Tensor::from_i64(
+        rt,
+        [3037000500L, 3037000500L],
+        [],
+        expected_rank=2,
+      )
+    },
     "tensor shape product overflows",
   )
   expect_invalid(
-    () => Tensor::from_f32(rt, [536870912L], [], expected_rank=1),
+    () => @tensor.Tensor::from_f32(rt, [536870912L], [], expected_rank=1),
     "tensor byte count overflows",
   )
   expect_invalid(
-    () => Tensor::from_bool(rt, Array::make(65, 0L), [], expected_rank=65),
+    () => {
+      @tensor.Tensor::from_bool(rt, Array::make(65, 0L), [], expected_rank=65)
+    },
     "tensor rank exceeds 64",
   )
   expect_invalid(
-    () => Tensor::from_f32(rt, [1L], one, expected_rank=-1),
+    () => @tensor.Tensor::from_f32(rt, [1L], one, expected_rank=-1),
     "tensor rank is negative",
   )
 }
@@ -212,7 +246,7 @@ test "wrong rank empty shape byte count and dtype are structured errors" {
 ///|
 test "tensor close is once and later use fails" {
   let rt = @raw.Runtime::load(compile_fake_tensor())
-  let tensor = Tensor::from_i64(rt, [2L], [-5L, -3L], expected_rank=1)
+  let tensor = @tensor.Tensor::from_i64(rt, [2L], [-5L, -3L], expected_rank=1)
   try tensor.read_f32() catch {
     InvalidArgument(message) =>
       inspect(message, content="tensor element type does not match")

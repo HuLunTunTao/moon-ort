@@ -20,6 +20,9 @@ pub impl Show for DType with fn output(self, logger) {
 }
 
 ///|
+pub extend DType with Show::{to_string, output}
+
+///|
 fn DType::code(self : DType) -> Int {
   match self {
     F32 => @raw.dtype_f32
@@ -87,6 +90,9 @@ pub impl Show for TensorError with fn output(self, logger) {
       logger.write_string("invalid argument; message=\{message}")
   }
 }
+
+///|
+pub extend TensorError with Show::{to_string, output}
 
 ///|
 fn lift(error : @raw.OrtError, api : String) -> TensorError {

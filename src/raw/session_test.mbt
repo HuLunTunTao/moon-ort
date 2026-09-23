@@ -1,11 +1,11 @@
 ///|
 test "session reads metadata and can outlive options" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  options.set_execution_mode(execution_parallel)
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  options.set_execution_mode(@raw.execution_parallel)
   inspect(options.execution_mode(), content="1")
-  let session = Session::create(rt, options, "ok.onnx")
+  let session = @raw.Session::create(rt, options, "ok.onnx")
   options.close()
   inspect(session.input_count(), content="2")
   inspect(session.output_count(), content="1")
@@ -43,13 +43,13 @@ test "session reads metadata and can outlive options" {
 ///|
 test "session options reach CreateSession" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
   options.set_intra_op_threads(3)
   options.set_inter_op_threads(4)
-  options.set_graph_optimization_level(graph_optimization_all)
-  options.set_execution_mode(execution_parallel)
-  try Session::create(rt, options, "options-probe.onnx") catch {
+  options.set_graph_optimization_level(@raw.graph_optimization_all)
+  options.set_execution_mode(@raw.execution_parallel)
+  try @raw.Session::create(rt, options, "options-probe.onnx") catch {
     Status(code, message, api) => {
       inspect(code, content="1")
       inspect(api, content="CreateSession")
@@ -66,9 +66,9 @@ test "session options reach CreateSession" {
 ///|
 test "open session keeps the runtime open" {
   let lib = compile_fake("fake_session")
-  let rt = Runtime::load(lib)
-  let options = SessionOptions::create(rt)
-  let session = Session::create(rt, options, "ok.onnx")
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  let session = @raw.Session::create(rt, options, "ok.onnx")
   options.close()
   try rt.close() catch {
     InvalidArgument(message) =>
@@ -86,9 +86,9 @@ test "open session keeps the runtime open" {
 test "repeated session construct and close does not crash" {
   let lib = compile_fake("fake_session")
   for i = 0; i < 20; i = i + 1 {
-    let rt = Runtime::load(lib)
-    let options = SessionOptions::create(rt)
-    let session = Session::create(rt, options, "ok.onnx")
+    let rt = @raw.Runtime::load(lib)
+    let options = @raw.SessionOptions::create(rt)
+    let session = @raw.Session::create(rt, options, "ok.onnx")
     assert_true(session.input_name(0) == "features")
     session.close()
     options.close()

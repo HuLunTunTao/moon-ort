@@ -40,6 +40,9 @@ pub impl Show for OrtError with fn output(self, logger) {
 }
 
 ///|
+pub extend OrtError with Show::{to_string, output}
+
+///|
 fn load_error(handle : Runtime) -> OrtError {
   match moon_ort_code(handle) {
     1 => MissingLibrary(moon_ort_path(handle), moon_ort_message(handle))

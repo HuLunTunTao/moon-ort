@@ -11,6 +11,9 @@ pub(all) enum GraphOptimization {
 } derive(Eq)
 
 ///|
+pub extend GraphOptimization with Eq::{not_equal, equal}
+
+///|
 fn GraphOptimization::to_raw(self : GraphOptimization) -> Int {
   match self {
     DisableAll => @raw.graph_optimization_disable_all
@@ -48,6 +51,9 @@ pub(all) enum ExecutionMode {
   Sequential
   Parallel
 } derive(Eq)
+
+///|
+pub extend ExecutionMode with Eq::{not_equal, equal}
 
 ///|
 fn ExecutionMode::to_raw(self : ExecutionMode) -> Int {

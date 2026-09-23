@@ -16,6 +16,9 @@ pub impl Show for IoError with fn output(self, logger) {
 }
 
 ///|
+pub extend IoError with Show::{to_string, output}
+
+///|
 #external
 priv type CFile
 
