@@ -1,14 +1,30 @@
-# 支持矩阵
+# 支持范围
 
-状态只用三类：已验证、预计可用、未支持。当前没有预计可用的平台或执行提供程序。
+## 平台
 
-| 平台 / 执行提供程序 | 状态 | v0.1 承诺 |
-|---|---|---|
-| macOS arm64 / CPU | 已验证。提交 `150990da2b3ff2db8a7324aa018b46d15aa5e6e4` 上用官方 ONNX Runtime 1.30.0 跑通 `src/session/run_official_test.mbt`。命令和数值见 [scenarios.md](scenarios.md) | 唯一正式支持平台 |
-| Linux（任意架构） | 未支持。没有 Linux native 验收记录 | 不承诺 |
-| Windows | 未支持 | 不承诺 |
-| CoreML、CUDA、TensorRT、DirectML、NNAPI、QNN、WebGPU | 未支持 | 不在 v0.1 |
+| 平台 | 状态 |
+|---|---|
+| macOS arm64 / CPU | 已验证 |
+| Linux | 未支持 |
+| Windows | 未支持 |
 
-Ubuntu 上的 GitHub Actions 只运行 `moon fmt --check` 和 `moon check --deny-warn`。该 job 不运行 `moon test`，不加载 ONNX Runtime，也不表示 Linux native 支持。
+`moon-ort` 使用官方 ONNX Runtime 1.30.0 C API，并以动态库方式加载。它不承诺静态链接、跨平台
+二进制分发或自动下载运行时。
 
-`.github/workflows/macos-arm64.yml` 定义了 GitHub 托管的 macOS arm64 job，`runs-on` 为 `macos-15`。该标签在 GitHub 托管 runner 表里是 arm64，不是 `macos-15-intel`。job 会在执行时下载官方 ONNX Runtime 1.30.0 osx-arm64，并运行 `moon fmt --check`、`moon check --deny-warn` 和 `moon test --deny-warn`。这个 job 还没有在 GitHub 上执行，不是绿色。macOS 上已有的证据仍是人工远程复验，步骤见 [remote-verify.md](remote-verify.md)。在该 job 实际跑过之前，本仓库不是完整发布就绪。
+## 已支持的能力
+
+- 从本地 ONNX 文件创建 CPU `Session`
+- 读取输入输出名称、元素类型、静态或动态维度及基本模型元数据
+- 创建和读取 `f32`、`i64`、`bool` 稠密 CPU 张量
+- 多输入、多输出同步 `Session::run`
+- 图优化等级、顺序/并行执行、intra-op 与 inter-op 线程配置
+
+## 未支持的能力
+
+- CUDA、CoreML、TensorRT、DirectML、NNAPI、QNN、WebGPU、WASM 或 JavaScript 后端
+- 字符串、`f16`、`bf16`、稀疏、Sequence、Map、Optional 张量
+- I/O Binding、设备指针、零拷贝 GPU 张量、异步取消和训练
+- ONNX 模型转换、量化、生成式 AI API 与纯 MoonBit ONNX 解释器
+
+如果模型的输入或输出使用未支持的张量类型，仍可读取其元数据；尝试将其转换为 v0.1 张量时会
+返回结构化错误。
