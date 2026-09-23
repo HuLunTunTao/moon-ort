@@ -16,11 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install MoonBit 0.1.20260915
-        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260915
+      - name: Install MoonBit stable
+        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest
 
       - name: Put moon on PATH
         run: echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Report MoonBit version
+        run: moon version --all
 
       - name: Download ONNX Runtime 1.30.0 linux x64
         env:
