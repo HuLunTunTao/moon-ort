@@ -13,7 +13,7 @@ fn bytes_equal(left : Bytes, right : Bytes) -> Bool {
 
 ///|
 fn compile_fake_tensor_wbtest() -> String raise Failure {
-  let path = "/tmp/moon-ort-sdk-tensor-wbtest.dylib"
+  let path = "/tmp/moon-ort-sdk-tensor-wbtest-\{@test_support.temp_suffix()}.dylib"
   let code = @test_support.compile_fake("fake_tensor", path)
   if code != 0 {
     fail("c compiler failed to build fake_tensor: \{code}")

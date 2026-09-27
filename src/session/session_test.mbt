@@ -1,6 +1,6 @@
 ///|
 fn compile_fake(name : String) -> String raise Failure {
-  let out = "/tmp/moon-ort-sdk-\{name}.dylib"
+  let out = "/tmp/moon-ort-sdk-\{name}-\{@test_support.temp_suffix()}.dylib"
   let code = @test_support.compile_fake(name, out)
   if code != 0 {
     fail("c compiler failed to build \{name}: \{code}")

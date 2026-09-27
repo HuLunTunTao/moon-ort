@@ -2,7 +2,7 @@
 
 ///|
 fn compile_fake_tensor() -> String raise Failure {
-  let out = "/tmp/moon-ort-sdk-tensor-fake_tensor.dylib"
+  let out = "/tmp/moon-ort-sdk-tensor-fake_tensor-\{@test_support.temp_suffix()}.dylib"
   let code = @test_support.compile_fake("fake_tensor", out)
   if code != 0 {
     fail("c compiler failed to build fake_tensor: \{code}")

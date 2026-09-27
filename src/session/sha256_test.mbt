@@ -1,7 +1,8 @@
 ///|
 test "file sha256 matches known vectors and the add fixture" {
-  let empty = "/tmp/moon-ort-sha-empty"
-  let abc = "/tmp/moon-ort-sha-abc"
+  let suffix = @test_support.temp_suffix()
+  let empty = "/tmp/moon-ort-sha-empty-\{suffix}"
+  let abc = "/tmp/moon-ort-sha-abc-\{suffix}"
   if @test_support.write_file(empty, "") != 0 {
     fail("failed to create empty file")
   }
