@@ -36,6 +36,7 @@ moon run examples/add_f32 -- "$MOON_ORT_LIBRARY" testdata/add_f32.onnx
 - [编写一次推理调用](docs/usage.md)
 - [支持的平台与能力边界](docs/support.md)
 - [架构与资源所有权](docs/architecture.md)
+- [版本迭代记录](CHANGELOG.md)
 - [贡献与测试](CONTRIBUTING.md)
 - [第三方组件与许可证](THIRD_PARTY_NOTICES.md)
 
