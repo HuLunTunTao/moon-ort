@@ -170,28 +170,47 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       options.set_execution_mode(Sequential)
       options.set_graph_optimization_level(All)
       let add = @session.Session::create(rt, options, "testdata/add_f32.onnx")
-      let add_input = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])
+      let add_input_values = official_fixture_add_f32_input_data()
+      let add_input = @tensor.Tensor::from_f32(
+        rt,
+        official_fixture_add_f32_input_shape(),
+        add_input_values,
+      )
       let add_out = add.run(["input"], [add_input], ["output"])
       let add_values = add_out[0].read_f32()
       println(
-        "add_f32 input=[0.5, -1.5] output=\{format_f32(add_values)} reference=[2.0, -3.5]",
+        "add_f32 input=\{format_f32(add_input_values)} output=\{format_f32(add_values)} reference=\{format_f32(official_fixture_add_f32_output_data())}",
       )
-      assert_f32(add_values, [2.0, -3.5])
-      assert_shape(add_out[0].shape(), [2L])
+      assert_f32(add_values, official_fixture_add_f32_output_data())
+      assert_shape(add_out[0].shape(), official_fixture_add_f32_output_shape())
       close_outputs(add_out)
       add_input.close()
       add.close()
       let sum_session = @session.Session::create(
         rt, options, "testdata/two_inputs_i64.onnx",
       )
-      let left = @tensor.Tensor::from_i64(rt, [2L], [-5L, -3L])
-      let right = @tensor.Tensor::from_i64(rt, [2L], [-3L, -1L])
+      let left_values = official_fixture_two_inputs_i64_left_data()
+      let right_values = official_fixture_two_inputs_i64_right_data()
+      let left = @tensor.Tensor::from_i64(
+        rt,
+        official_fixture_two_inputs_i64_left_shape(),
+        left_values,
+      )
+      let right = @tensor.Tensor::from_i64(
+        rt,
+        official_fixture_two_inputs_i64_right_shape(),
+        right_values,
+      )
       let sum_out = sum_session.run(["left", "right"], [left, right], ["sum"])
       let sum_values = sum_out[0].read_i64()
       println(
-        "two_inputs_i64 input=[-5, -3]+[-3, -1] output=\{format_i64(sum_values)} reference=[-8, -4]",
+        "two_inputs_i64 input=\{format_i64(left_values)}+\{format_i64(right_values)} output=\{format_i64(sum_values)} reference=\{format_i64(official_fixture_two_inputs_i64_sum_data())}",
       )
-      assert_i64(sum_values, [-8L, -4L])
+      assert_i64(sum_values, official_fixture_two_inputs_i64_sum_data())
+      assert_shape(
+        sum_out[0].shape(),
+        official_fixture_two_inputs_i64_sum_shape(),
+      )
       close_outputs(sum_out)
       left.close()
       right.close()
@@ -199,41 +218,77 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       let gate = @session.Session::create(
         rt, options, "testdata/two_outputs_f32_bool.onnx",
       )
-      let scores = @tensor.Tensor::from_f32(rt, [2L], [-1.5, 0.25])
+      let scores_values = official_fixture_two_outputs_f32_bool_scores_data()
+      let scores = @tensor.Tensor::from_f32(
+        rt,
+        official_fixture_two_outputs_f32_bool_scores_shape(),
+        scores_values,
+      )
       let gate_out = gate.run(["scores"], [scores], ["shifted", "positive"])
       let shifted = gate_out[0].read_f32()
       let positive = gate_out[1].read_bool()
       println(
-        "two_outputs_f32_bool input=[-1.5, 0.25] shifted=\{format_f32(shifted)} reference=[-0.5, 1.25] positive=\{format_bool(positive)} reference=[false, true]",
+        "two_outputs_f32_bool input=\{format_f32(scores_values)} shifted=\{format_f32(shifted)} reference=\{format_f32(official_fixture_two_outputs_f32_bool_shifted_data())} positive=\{format_bool(positive)} reference=\{format_bool(official_fixture_two_outputs_f32_bool_positive_data())}",
       )
-      assert_f32(shifted, [-0.5, 1.25])
-      assert_bool(positive, [false, true])
+      assert_f32(shifted, official_fixture_two_outputs_f32_bool_shifted_data())
+      assert_bool(
+        positive,
+        official_fixture_two_outputs_f32_bool_positive_data(),
+      )
+      assert_shape(
+        gate_out[0].shape(),
+        official_fixture_two_outputs_f32_bool_shifted_shape(),
+      )
+      assert_shape(
+        gate_out[1].shape(),
+        official_fixture_two_outputs_f32_bool_positive_shape(),
+      )
       close_outputs(gate_out)
       scores.close()
       gate.close()
       let dynamic = @session.Session::create(
         rt, options, "testdata/dynamic_identity_f32.onnx",
       )
-      let batch1 = @tensor.Tensor::from_f32(rt, [1L, 2L], [1.0, -2.0])
+      let batch1_input_values = official_fixture_dynamic_identity_f32_batch1_input_data()
+      let batch1 = @tensor.Tensor::from_f32(
+        rt,
+        official_fixture_dynamic_identity_f32_batch1_input_shape(),
+        batch1_input_values,
+      )
       let batch1_out = dynamic.run(["input"], [batch1], ["output"])
       let batch1_values = batch1_out[0].read_f32()
       println(
-        "dynamic_identity_f32 batch1 input=[[1.0, -2.0]] output=\{format_f32(batch1_values)} reference=[1.0, -2.0]",
+        "dynamic_identity_f32 batch1 output=\{format_f32(batch1_values)} reference=\{format_f32(official_fixture_dynamic_identity_f32_batch1_output_data())}",
       )
-      assert_shape(batch1_out[0].shape(), [1L, 2L])
-      assert_f32(batch1_values, [1.0, -2.0])
+      assert_shape(
+        batch1_out[0].shape(),
+        official_fixture_dynamic_identity_f32_batch1_output_shape(),
+      )
+      assert_f32(
+        batch1_values,
+        official_fixture_dynamic_identity_f32_batch1_output_data(),
+      )
       close_outputs(batch1_out)
       batch1.close()
-      let batch3 = @tensor.Tensor::from_f32(rt, [3L, 2L], [
-        2.0, 0.0, -0.5, 2.0, 2.0, -1.5,
-      ])
+      let batch3_input_values = official_fixture_dynamic_identity_f32_batch3_input_data()
+      let batch3 = @tensor.Tensor::from_f32(
+        rt,
+        official_fixture_dynamic_identity_f32_batch3_input_shape(),
+        batch3_input_values,
+      )
       let batch3_out = dynamic.run(["input"], [batch3], ["output"])
       let batch3_values = batch3_out[0].read_f32()
       println(
-        "dynamic_identity_f32 batch3 input=[[2.0, 0.0], [-0.5, 2.0], [2.0, -1.5]] output=\{format_f32(batch3_values)} reference=[2.0, 0.0, -0.5, 2.0, 2.0, -1.5]",
+        "dynamic_identity_f32 batch3 output=\{format_f32(batch3_values)} reference=\{format_f32(official_fixture_dynamic_identity_f32_batch3_output_data())}",
       )
-      assert_shape(batch3_out[0].shape(), [3L, 2L])
-      assert_f32(batch3_values, [2.0, 0.0, -0.5, 2.0, 2.0, -1.5])
+      assert_shape(
+        batch3_out[0].shape(),
+        official_fixture_dynamic_identity_f32_batch3_output_shape(),
+      )
+      assert_f32(
+        batch3_values,
+        official_fixture_dynamic_identity_f32_batch3_output_data(),
+      )
       close_outputs(batch3_out)
       batch3.close()
       dynamic.close()

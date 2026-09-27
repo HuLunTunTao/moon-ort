@@ -22,6 +22,7 @@ SDK 运行时，也不提交它们的安装包。
 | `dynamic_identity_f32.onnx` | 动态 batch；清单中有 batch 1 和 batch 3 |
 | `negative/invalid_model.onnx` | 固定的非 protobuf 字节，不是有效模型 |
 | `cases/manifest.json` | 种子抽出的输入、解析参考输出和负例规格 |
+| `../src/session/official_fixture_data_test.mbt` | 由同一 manifest 生成，供官方 ORT 测试读取输入、shape 与期望输出 |
 
 错类型、错 shape 和缺输入不是额外的模型文件。它们在清单里对上述有效模型提交错误输入。
 官方 ORT 的通过标准和逐输出容差见 `tools/reference/tolerances.json`：`f32` 为 `rtol=0`、
@@ -41,4 +42,5 @@ mlpython3119 -m venv "$fixture_venv"
 ```
 
 仓库忽略通用 `*.onnx`，但允许 `testdata/**/*.onnx`。临时环境、缓存、权重和 ORT 二进制不进入仓库。
-修改生成器、ONNX 版本或模型图之后，必须重新生成、检查图，再更新 `SHA256SUMS` 和本说明。
+修改生成器、ONNX 版本、输入抽样或模型图之后，必须重新生成、检查图，再更新 `SHA256SUMS` 和本说明。
+生成器会从同一个 cases 对象写出 manifest 与 MoonBit 官方测试数据；官方测试不再复制一份手写数值。
