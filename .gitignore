@@ -24,8 +24,10 @@ third_party/onnxruntime/lib/
 
 # Local agent instructions
 AGENTS.md
+.opencode/
 
 # Local editor and operating-system files
 .DS_Store
 .idea/
 .vscode/
+
