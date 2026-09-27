@@ -15,6 +15,7 @@ typedef struct FakeOptions {
 typedef struct FakeSession {
   int magic;
   int fail;
+  int perf_echo;
 } FakeSession;
 
 typedef struct FakeTensor {
@@ -195,7 +196,8 @@ static OrtStatus *fake_create_session(
   if (parsed == NULL || parsed->magic != FAKE_OPTIONS) {
     abort();
   }
-  if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0)) {
+  if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0 &&
+                             strcmp(model_path, "perf.onnx") != 0)) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -204,6 +206,7 @@ static OrtStatus *fake_create_session(
   }
   session->magic = FAKE_SESSION;
   session->fail = strcmp(model_path, "fail-run.onnx") == 0;
+  session->perf_echo = strcmp(model_path, "perf.onnx") == 0;
   session_live++;
   *out = (OrtSession *)session;
   return NULL;
@@ -499,6 +502,12 @@ static OrtStatus *fake_run(
     orphan_live++;
     outputs[0] = (OrtValue *)output;
     return make_status(ORT_FAIL, "run failed after output");
+  }
+  if (parsed->perf_echo) {
+    FakeTensor *input = as_tensor((OrtValue *)inputs[0]);
+    output = make_tensor(input->element, input->rank, input->dims, input->data, input->nbytes);
+    outputs[0] = (OrtValue *)output;
+    return NULL;
   }
   if (!matches_add_input((OrtValue *)inputs[0])) {
     return make_status(ORT_INVALID_ARGUMENT, "input does not match add_f32 fixture");

@@ -348,6 +348,81 @@ pub fn Tensor::from_bool(
 }
 
 ///|
+/// Copy fixed little-endian tensor bytes into an owned CPU tensor.
+///
+/// `data` is never borrowed; the resulting tensor has its own ORT storage.
+/// Numeric bytes use the same fixed little-endian representation as the
+/// typed constructors. Bool bytes must be `0x00` or `0x01`.
+fn Tensor::from_bytes(
+  runtime : @raw.Runtime,
+  dtype : DType,
+  shape : Array[Int64],
+  data : Bytes,
+  expected_rank? : Int,
+) -> Tensor raise TensorError {
+  let width = dtype.width()
+  if data.length() % width != 0 {
+    raise InvalidArgument("tensor byte count does not match data")
+  }
+  match dtype {
+    Bool =>
+      for i = 0; i < data.length(); i = i + 1 {
+        if data[i] != b'\x00' && data[i] != b'\x01' {
+          raise InvalidArgument("bool tensor byte is not 0 or 1")
+        }
+      }
+    _ => ()
+  }
+  let count = data.length() / width
+  let (dims, element_count, byte_count) = prepare(
+    shape, dtype, count, expected_rank,
+  )
+  Tensor::open(
+    runtime, dtype, dims, element_count, byte_count, data, "Tensor::from_bytes",
+  )
+}
+
+///|
+/// Copy fixed little-endian `f32` bytes into an owned CPU tensor.
+///
+/// `data` is never borrowed. `shape` and byte count must agree; numeric values
+/// use the same fixed little-endian representation as `Tensor::from_f32`.
+pub fn Tensor::from_f32_bytes(
+  runtime : @raw.Runtime,
+  shape : Array[Int64],
+  data : Bytes,
+  expected_rank? : Int,
+) -> Tensor raise TensorError {
+  Tensor::from_bytes(runtime, F32, shape, data, expected_rank?)
+}
+
+///|
+/// Copy fixed little-endian `i64` bytes into an owned CPU tensor.
+///
+/// `data` is never borrowed. `shape` and byte count must agree; numeric values
+/// use the same fixed little-endian representation as `Tensor::from_i64`.
+pub fn Tensor::from_i64_bytes(
+  runtime : @raw.Runtime,
+  shape : Array[Int64],
+  data : Bytes,
+  expected_rank? : Int,
+) -> Tensor raise TensorError {
+  Tensor::from_bytes(runtime, I64, shape, data, expected_rank?)
+}
+
+///|
+/// Copy bool bytes into an owned CPU tensor. `data` is never borrowed; bytes
+/// must be `0x00` or `0x01`, and `shape` must agree with the byte count.
+pub fn Tensor::from_bool_bytes(
+  runtime : @raw.Runtime,
+  shape : Array[Int64],
+  data : Bytes,
+  expected_rank? : Int,
+) -> Tensor raise TensorError {
+  Tensor::from_bytes(runtime, Bool, shape, data, expected_rank?)
+}
+
+///|
 fn Tensor::ensure_open(self : Tensor, api : String) -> Unit raise TensorError {
   if self.closed.val {
     raise UseAfterClose(api)
@@ -369,6 +444,13 @@ fn Tensor::copy_data(
     raise InvalidArgument("tensor byte count does not match data")
   }
   data
+}
+
+///|
+/// Return an independent copy of this tensor's fixed little-endian bytes.
+/// The returned bytes do not alias the ORT-owned tensor storage.
+pub fn Tensor::copy_bytes(self : Tensor) -> Bytes raise TensorError {
+  self.copy_data(self.kind, "Tensor::copy_bytes")
 }
 
 ///|

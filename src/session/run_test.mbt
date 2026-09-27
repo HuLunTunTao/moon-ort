@@ -95,6 +95,47 @@ test "fake run keeps input ownership and closes the output once" {
 }
 
 ///|
+test "fake run copies i64 and bool bytes without numeric array conversion" {
+  let (rt, session) = open_run(compile_fake("fake_run"), "perf.onnx")
+  let integers = @tensor.Tensor::from_i64(rt, [2L], [-5L, 7L])
+  let booleans = @tensor.Tensor::from_bool(rt, [2L], [true, false])
+  let int_outputs = session.run(["input"], [integers], ["output"])
+  assert_i64(int_outputs[0].read_i64(), [-5L, 7L])
+  int_outputs[0].close()
+  let bool_outputs = session.run(["input"], [booleans], ["output"])
+  assert_bool(bool_outputs[0].read_bool(), [true, false])
+  bool_outputs[0].close()
+  integers.close()
+  booleans.close()
+  session.close()
+  rt.close()
+}
+
+///|
+/// Fixed fake-ORT microbenchmark: 50 synchronous 1 MiB f32 echo runs. Use
+/// `/usr/bin/time -p moon test --deny-warn --filter '*copy benchmark*' src/session/run_test.mbt`
+/// and compare repeated runs on the same machine/toolchain before and after a
+/// data-path change. This is a copy-path microbenchmark, not official ORT.
+test "fake run copy benchmark keeps large tensors" {
+  let (rt, session) = open_run(compile_fake("fake_run"), "perf.onnx")
+  let values : Array[Float] = Array::makei(262144, fn(_index) { 0.5 })
+  let input = @tensor.Tensor::from_f32(rt, [262144L], values)
+  for i = 0; i < 50; i = i + 1 {
+    let outputs = session.run(["input"], [input], ["output"])
+    let output = outputs[0]
+    if i == 0 {
+      let result = output.read_f32()
+      assert_true(result.length() == values.length())
+      assert_true(result[0] == 0.5 && result[result.length() - 1] == 0.5)
+    }
+    output.close()
+  }
+  input.close()
+  session.close()
+  rt.close()
+}
+
+///|
 test "run rejects a wrong input or output name" {
   let (rt, session) = open_run(compile_fake("fake_run"), "ok.onnx")
   let input = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])

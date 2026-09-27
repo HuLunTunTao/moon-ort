@@ -165,78 +165,6 @@ fn shape_matches(actual : Array[Int64], expected : Array[Dimension]) -> Bool {
 }
 
 ///|
-fn read_u32_le(data : Bytes, offset : Int) -> UInt {
-  data[offset].to_uint() |
-  (data[offset + 1].to_uint() << 8) |
-  (data[offset + 2].to_uint() << 16) |
-  (data[offset + 3].to_uint() << 24)
-}
-
-///|
-fn read_u64_le(data : Bytes, offset : Int) -> UInt64 {
-  let mut bits = 0UL
-  for i = 0; i < 8; i = i + 1 {
-    bits = bits | (data[offset + i].to_uint64() << (i * 8))
-  }
-  bits
-}
-
-///|
-fn encode_f32(values : Array[Float]) -> Bytes {
-  Bytes::makei(values.length() * 4, fn(index) {
-    let bits = values[index / 4].reinterpret_as_uint()
-    (bits >> (index % 4 * 8)).to_byte()
-  })
-}
-
-///|
-fn encode_i64(values : Array[Int64]) -> Bytes {
-  Bytes::makei(values.length() * 8, fn(index) {
-    let bits = values[index / 8].reinterpret_as_uint64()
-    (bits >> (index % 8 * 8)).to_byte()
-  })
-}
-
-///|
-fn encode_bool(values : Array[Bool]) -> Bytes {
-  Bytes::makei(values.length(), fn(index) {
-    if values[index] {
-      b'\x01'
-    } else {
-      b'\x00'
-    }
-  })
-}
-
-///|
-fn decode_f32(data : Bytes) -> Array[Float] raise RunError {
-  if data.length() % 4 != 0 {
-    raise InvalidArgument("f32 output byte count is not a multiple of 4")
-  }
-  Array::makei(data.length() / 4, fn(index) {
-    Float::reinterpret_from_uint(read_u32_le(data, index * 4))
-  })
-}
-
-///|
-fn decode_i64(data : Bytes) -> Array[Int64] raise RunError {
-  if data.length() % 8 != 0 {
-    raise InvalidArgument("i64 output byte count is not a multiple of 8")
-  }
-  Array::makei(data.length() / 8, fn(index) {
-    read_u64_le(data, index * 8).reinterpret_as_int64()
-  })
-}
-
-///|
-fn decode_bool(data : Bytes) -> Array[Bool] raise RunError {
-  for i = 0; i < data.length(); i = i + 1 {
-    if data[i] != b'\x00' && data[i] != b'\x01' {
-      raise InvalidArgument("bool output byte is not 0 or 1")
-    }
-  }
-  Array::makei(data.length(), fn(index) { data[index] == b'\x01' })
-}
 
 ///|
 fn reject_duplicates(
@@ -290,22 +218,12 @@ fn copy_input(
 ) -> @raw.Value raise RunError {
   let dtype = tensor.dtype() catch { error => raise lift_tensor(error) }
   let shape = tensor.shape() catch { error => raise lift_tensor(error) }
-  let (code, bytes) = match dtype {
-    @tensor.F32 => {
-      let values = tensor.read_f32() catch { error => raise lift_tensor(error) }
-      (@raw.dtype_f32, encode_f32(values))
-    }
-    @tensor.I64 => {
-      let values = tensor.read_i64() catch { error => raise lift_tensor(error) }
-      (@raw.dtype_i64, encode_i64(values))
-    }
-    @tensor.Bool => {
-      let values = tensor.read_bool() catch {
-        error => raise lift_tensor(error)
-      }
-      (@raw.dtype_bool, encode_bool(values))
-    }
+  let code = match dtype {
+    @tensor.F32 => @raw.dtype_f32
+    @tensor.I64 => @raw.dtype_i64
+    @tensor.Bool => @raw.dtype_bool
   }
+  let bytes = tensor.copy_bytes() catch { error => raise lift_tensor(error) }
   @raw.Value::create_cpu_tensor(runtime, code, shape_fixed(shape), bytes) catch {
     error => raise lift_ort(error)
   }
@@ -323,18 +241,23 @@ fn take_output(
   let bytes = value.copy_bytes() catch { error => raise lift_ort(error) }
   let dims = shape_array(shape)
   let tensor = if code == @raw.dtype_f32 {
-    let values = decode_f32(bytes)
-    @tensor.Tensor::from_f32(runtime, dims, values) catch {
+    if bytes.length() % 4 != 0 {
+      raise InvalidArgument("f32 output byte count is not a multiple of 4")
+    }
+    @tensor.Tensor::from_f32_bytes(runtime, dims, bytes) catch {
       error => raise lift_tensor(error)
     }
   } else if code == @raw.dtype_i64 {
-    let values = decode_i64(bytes)
-    @tensor.Tensor::from_i64(runtime, dims, values) catch {
+    if bytes.length() % 8 != 0 {
+      raise InvalidArgument("i64 output byte count is not a multiple of 8")
+    }
+    @tensor.Tensor::from_i64_bytes(runtime, dims, bytes) catch {
       error => raise lift_tensor(error)
     }
   } else if code == @raw.dtype_bool {
-    let values = decode_bool(bytes)
-    @tensor.Tensor::from_bool(runtime, dims, values) catch {
+    @tensor.Tensor::from_bool_bytes(runtime, dims, bytes) catch {
+      @tensor.InvalidArgument("bool tensor byte is not 0 or 1") =>
+        raise InvalidArgument("bool output byte is not 0 or 1")
       error => raise lift_tensor(error)
     }
   } else {
