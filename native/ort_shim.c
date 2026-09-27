@@ -142,6 +142,7 @@ static void release_open_env(EnvPayload *payload) {
     payload->env = NULL;
   }
   payload->state = MOON_ORT_STATE_CLOSED;
+  payload->api = NULL;
   if (payload->lib != NULL) {
     dlclose(payload->lib);
     payload->lib = NULL;

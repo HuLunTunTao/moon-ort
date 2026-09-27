@@ -9,6 +9,9 @@ fn compile_fake(name : String) -> String raise Failure {
 }
 
 ///|
+extern "C" fn test_env_handles_released(handle : Runtime) -> Int = "moon_ort_test_env_handles_released"
+
+///|
 test "missing library returns attempted path" {
   let missing = "/no/such/libonnxruntime-moon-ort.dylib"
   try @raw.Runtime::load(missing) catch {
@@ -79,7 +82,7 @@ test "create env failure releases OrtStatus" {
 ///|
 test "env close is once and later use fails" {
   let lib = compile_fake("fake_env")
-  let rt = @raw.Runtime::load(lib)
+  let rt = Runtime::load(lib)
   inspect(rt.version(), content="fake-env-1.30.0")
   inspect(rt.api_version(), content="30")
   inspect(@raw.header_api_version(), content="30")
@@ -102,6 +105,14 @@ test "env close is once and later use fails" {
   } noraise {
     _ => fail("expected AlreadyClosed")
   }
+}
+
+///|
+test "env close clears the dynamic API table pointer" {
+  let lib = compile_fake("fake_env")
+  let rt = @raw.Runtime::load(lib)
+  rt.close()
+  assert_true(test_env_handles_released(rt) == 1)
 }
 
 ///|
