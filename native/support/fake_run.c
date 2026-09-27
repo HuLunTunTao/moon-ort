@@ -16,6 +16,7 @@ typedef struct FakeSession {
   int magic;
   int fail;
   int long_input_name;
+  int many_names;
 } FakeSession;
 
 typedef struct FakeTensor {
@@ -58,6 +59,7 @@ static int env_creates = 0;
 static int env_releases = 0;
 static int status_live = 0;
 static int alloc_live = 0;
+static int name_getter_calls = 0;
 static int info_live = 0;
 static int tensor_live = 0;
 static int orphan_live = 0;
@@ -197,7 +199,8 @@ static OrtStatus *fake_create_session(
     abort();
   }
   if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0 &&
-                             strcmp(model_path, "long-input-name.onnx") != 0)) {
+                             strcmp(model_path, "long-input-name.onnx") != 0 &&
+                             strcmp(model_path, "many-names.onnx") != 0)) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -207,6 +210,7 @@ static OrtStatus *fake_create_session(
   session->magic = FAKE_SESSION;
   session->fail = strcmp(model_path, "fail-run.onnx") == 0;
   session->long_input_name = strcmp(model_path, "long-input-name.onnx") == 0;
+  session->many_names = strcmp(model_path, "many-names.onnx") == 0;
   session_live++;
   *out = (OrtSession *)session;
   return NULL;
@@ -255,49 +259,64 @@ static void fake_release_status(OrtStatus *status) {
 }
 
 static OrtStatus *fake_input_count(const OrtSession *session, size_t *out) {
-  (void)session;
-  *out = 1;
+  const FakeSession *parsed = (const FakeSession *)session;
+  *out = parsed->many_names ? 4096 : 1;
   return NULL;
 }
 
 static OrtStatus *fake_output_count(const OrtSession *session, size_t *out) {
-  (void)session;
-  *out = 1;
+  const FakeSession *parsed = (const FakeSession *)session;
+  *out = parsed->many_names ? 4096 : 1;
   return NULL;
 }
 
 static OrtStatus *fake_input_name(const OrtSession *session, size_t index, OrtAllocator *allocator, char **value) {
   const FakeSession *parsed = (const FakeSession *)session;
   char long_name[1025];
-  if (index != 0) {
-    return make_status(ORT_INVALID_ARGUMENT, "input index");
-  }
+  char many_name[32];
   if (parsed == NULL || parsed->magic != FAKE_SESSION) {
     abort();
+  }
+  if (index >= (parsed->many_names ? 4096U : 1U)) {
+    return make_status(ORT_INVALID_ARGUMENT, "input index");
   }
   if (parsed->long_input_name) {
     memset(long_name, 'x', sizeof(long_name) - 1);
     long_name[1023] = 'y';
     long_name[1024] = '\0';
     *value = alloc_dup(allocator, long_name);
+  } else if (parsed->many_names) {
+    snprintf(many_name, sizeof(many_name), "input-%04zu", index);
+    *value = alloc_dup(allocator, many_name);
   } else {
     *value = alloc_dup(allocator, "input");
   }
   if (*value == NULL) {
     return make_status(ORT_FAIL, "out of memory");
   }
+  name_getter_calls++;
   return NULL;
 }
 
 static OrtStatus *fake_output_name(const OrtSession *session, size_t index, OrtAllocator *allocator, char **value) {
-  (void)session;
-  if (index != 0) {
+  const FakeSession *parsed = (const FakeSession *)session;
+  char many_name[32];
+  if (parsed == NULL || parsed->magic != FAKE_SESSION) {
+    abort();
+  }
+  if (index >= (parsed->many_names ? 4096U : 1U)) {
     return make_status(ORT_INVALID_ARGUMENT, "output index");
   }
-  *value = alloc_dup(allocator, "output");
+  if (parsed->many_names) {
+    snprintf(many_name, sizeof(many_name), "output-%04zu", index);
+    *value = alloc_dup(allocator, many_name);
+  } else {
+    *value = alloc_dup(allocator, "output");
+  }
   if (*value == NULL) {
     return make_status(ORT_FAIL, "out of memory");
   }
+  name_getter_calls++;
   return NULL;
 }
 
@@ -570,6 +589,11 @@ static OrtStatus *fake_lookup(
   }
   if (key != NULL && strcmp(key, "alloc_live") == 0) {
     snprintf(text, sizeof(text), "%d", alloc_live);
+    *value = alloc_dup(allocator, text);
+    return *value == NULL ? make_status(ORT_FAIL, "out of memory") : NULL;
+  }
+  if (key != NULL && strcmp(key, "name_getter_calls") == 0) {
+    snprintf(text, sizeof(text), "%d", name_getter_calls);
     *value = alloc_dup(allocator, text);
     return *value == NULL ? make_status(ORT_FAIL, "out of memory") : NULL;
   }
