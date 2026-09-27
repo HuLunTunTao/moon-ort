@@ -48,3 +48,9 @@ static const OrtApiBase k_base = {fake_get_api, fake_version_string};
 const OrtApiBase *ORT_API_CALL OrtGetApiBase(void) {
   return &k_base;
 }
+
+__attribute__((destructor)) static void moon_ort_fake_env_check_released(void) {
+  if (releases != creates) {
+    abort();
+  }
+}
