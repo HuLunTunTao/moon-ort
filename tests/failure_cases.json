@@ -133,8 +133,8 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "当前测试集中没有针对 null handle 的独立回归断言。",
-      "trigger": "把空句柄传入需要有效环境的调用。",
+      "moonbit_coverage": ["src/raw/run_wbtest.mbt: run rejects a null value"],
+      "trigger": "把内部 OrtValue 为空的 Value 传入 Session::run。",
       "expected": {
         "outcome": "error",
         "class": "null_handle",
