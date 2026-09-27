@@ -242,3 +242,35 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
     }
   }
 }
+
+///|
+/// The fake libraries cannot validate protobuf rejection by ONNX Runtime.
+test "official runtime rejects corrupt model without crashing" {
+  match official_runtime() {
+    None => ()
+    Some(rt) => {
+      let options = @session.SessionOptions::create(rt)
+      try
+        @session.Session::create(
+          rt, options, "testdata/negative/invalid_model.onnx",
+        )
+      catch {
+        @raw.Status(code, message, api) => {
+          assert_true(code != 0)
+          assert_true(message.length() > 0)
+          inspect(api, content="CreateSession")
+        }
+        error => fail("invalid model returned unexpected error: \{error}")
+      } noraise {
+        session => {
+          session.close()
+          fail("invalid protobuf model unexpectedly loaded")
+        }
+      }
+      // A rejected model must not poison the environment or abort the process.
+      inspect(rt.version(), content="1.30.0")
+      options.close()
+      rt.close()
+    }
+  }
+}

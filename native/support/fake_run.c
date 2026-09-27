@@ -19,6 +19,8 @@ typedef struct FakeSession {
   int partial_info;
   int long_input_name;
   int many_names;
+  int multi;
+  int scalar;
 } FakeSession;
 
 typedef struct FakeTensor {
@@ -204,7 +206,9 @@ static OrtStatus *fake_create_session(
                              strcmp(model_path, "perf.onnx") != 0 &&
                              strcmp(model_path, "partial-info.onnx") != 0 &&
                              strcmp(model_path, "long-input-name.onnx") != 0 &&
-                             strcmp(model_path, "many-names.onnx") != 0)) {
+                             strcmp(model_path, "many-names.onnx") != 0 &&
+                             strcmp(model_path, "multi-fail-run.onnx") != 0 &&
+                             strcmp(model_path, "scalar-run.onnx") != 0)) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -212,11 +216,13 @@ static OrtStatus *fake_create_session(
     abort();
   }
   session->magic = FAKE_SESSION;
-  session->fail = strcmp(model_path, "fail-run.onnx") == 0;
+  session->fail = strcmp(model_path, "fail-run.onnx") == 0 || strcmp(model_path, "multi-fail-run.onnx") == 0;
   session->perf_echo = strcmp(model_path, "perf.onnx") == 0;
   session->partial_info = strcmp(model_path, "partial-info.onnx") == 0;
   session->long_input_name = strcmp(model_path, "long-input-name.onnx") == 0;
   session->many_names = strcmp(model_path, "many-names.onnx") == 0;
+  session->multi = strcmp(model_path, "multi-fail-run.onnx") == 0;
+  session->scalar = strcmp(model_path, "scalar-run.onnx") == 0;
   session_live++;
   *out = (OrtSession *)session;
   return NULL;
@@ -266,13 +272,13 @@ static void fake_release_status(OrtStatus *status) {
 
 static OrtStatus *fake_input_count(const OrtSession *session, size_t *out) {
   const FakeSession *parsed = (const FakeSession *)session;
-  *out = parsed->many_names ? 4096 : 1;
+  *out = parsed != NULL && parsed->many_names ? 4096 : parsed != NULL && parsed->multi ? 2 : 1;
   return NULL;
 }
 
 static OrtStatus *fake_output_count(const OrtSession *session, size_t *out) {
   const FakeSession *parsed = (const FakeSession *)session;
-  *out = parsed->many_names ? 4096 : 1;
+  *out = parsed != NULL && parsed->many_names ? 4096 : parsed != NULL && parsed->multi ? 2 : 1;
   return NULL;
 }
 
@@ -283,7 +289,7 @@ static OrtStatus *fake_input_name(const OrtSession *session, size_t index, OrtAl
   if (parsed == NULL || parsed->magic != FAKE_SESSION) {
     abort();
   }
-  if (index >= (parsed->many_names ? 4096U : 1U)) {
+  if (index >= (parsed->many_names ? 4096U : parsed->multi ? 2U : 1U)) {
     return make_status(ORT_INVALID_ARGUMENT, "input index");
   }
   if (parsed->long_input_name) {
@@ -294,6 +300,8 @@ static OrtStatus *fake_input_name(const OrtSession *session, size_t index, OrtAl
   } else if (parsed->many_names) {
     snprintf(many_name, sizeof(many_name), "input-%04zu", index);
     *value = alloc_dup(allocator, many_name);
+  } else if (parsed->multi && index == 1) {
+    *value = alloc_dup(allocator, "second_input");
   } else {
     *value = alloc_dup(allocator, "input");
   }
@@ -310,12 +318,14 @@ static OrtStatus *fake_output_name(const OrtSession *session, size_t index, OrtA
   if (parsed == NULL || parsed->magic != FAKE_SESSION) {
     abort();
   }
-  if (index >= (parsed->many_names ? 4096U : 1U)) {
+  if (index >= (parsed->many_names ? 4096U : parsed->multi ? 2U : 1U)) {
     return make_status(ORT_INVALID_ARGUMENT, "output index");
   }
   if (parsed->many_names) {
     snprintf(many_name, sizeof(many_name), "output-%04zu", index);
     *value = alloc_dup(allocator, many_name);
+  } else if (parsed->multi && index == 1) {
+    *value = alloc_dup(allocator, "second_output");
   } else {
     *value = alloc_dup(allocator, "output");
   }
@@ -510,6 +520,13 @@ static int matches_add_input(OrtValue *value) {
   return tensor->data != NULL && memcmp(tensor->data, k_add_input, sizeof(k_add_input)) == 0;
 }
 
+static int matches_scalar_input(OrtValue *value) {
+  static const uint8_t scalar[4] = {0x00, 0x00, 0x50, 0x40};
+  FakeTensor *tensor = as_tensor(value);
+  return tensor->element == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT && tensor->rank == 0 && tensor->nbytes == sizeof(scalar) &&
+         tensor->data != NULL && memcmp(tensor->data, scalar, sizeof(scalar)) == 0;
+}
+
 static OrtStatus *fake_run(
   OrtSession *session,
   const OrtRunOptions *run_options,
@@ -522,24 +539,32 @@ static OrtStatus *fake_run(
 ) {
   FakeSession *parsed = (FakeSession *)session;
   static const int64_t dims[1] = {2};
+  static const uint8_t scalar[4] = {0x00, 0x00, 0x50, 0x40};
   FakeTensor *output;
   (void)run_options;
   if (parsed == NULL || parsed->magic != FAKE_SESSION) {
     abort();
   }
-  if (input_len != 1 || output_names_len != 1 || input_names == NULL || inputs == NULL || output_names == NULL ||
+  if (input_len != (parsed->multi ? 2U : 1U) || output_names_len != (parsed->multi ? 2U : 1U) ||
+      input_names == NULL || inputs == NULL || output_names == NULL ||
       outputs == NULL) {
     return make_status(ORT_INVALID_ARGUMENT, "run arity");
   }
-  if (strcmp(input_names[0], "input") != 0 || strcmp(output_names[0], "output") != 0) {
+  if (strcmp(input_names[0], "input") != 0 || strcmp(output_names[0], "output") != 0 ||
+      (parsed->multi && (strcmp(input_names[1], "second_input") != 0 ||
+                         strcmp(output_names[1], "second_output") != 0))) {
     return make_status(ORT_INVALID_ARGUMENT, "run name");
   }
-  outputs[0] = NULL;
+  for (size_t i = 0; i < output_names_len; i++) {
+    outputs[i] = NULL;
+  }
   if (parsed->fail) {
-    output = make_tensor(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, 1, dims, k_add_output, sizeof(k_add_output));
-    output->orphan = 1;
-    orphan_live++;
-    outputs[0] = (OrtValue *)output;
+    for (size_t i = 0; i < output_names_len; i++) {
+      output = make_tensor(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, 1, dims, k_add_output, sizeof(k_add_output));
+      output->orphan = 1;
+      orphan_live++;
+      outputs[i] = (OrtValue *)output;
+    }
     return make_status(ORT_FAIL, "run failed after output");
   }
   if (parsed->perf_echo) {
@@ -552,6 +577,19 @@ static OrtStatus *fake_run(
     static const int64_t info_dims[1] = {23};
     output = make_tensor(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, 1, info_dims, NULL, sizeof(float) * 23);
     outputs[0] = (OrtValue *)output;
+    return NULL;
+  }
+  if (parsed->scalar) {
+    if (!matches_scalar_input((OrtValue *)inputs[0])) {
+      return make_status(ORT_INVALID_ARGUMENT, "input does not match scalar fixture");
+    }
+    outputs[0] = (OrtValue *)make_tensor(
+      ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
+      0,
+      NULL,
+      scalar,
+      sizeof(scalar)
+    );
     return NULL;
   }
   if (!matches_add_input((OrtValue *)inputs[0])) {

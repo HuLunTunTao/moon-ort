@@ -51,6 +51,23 @@ test "api mismatch reports expected and actual versions" {
 }
 
 ///|
+/// A runtime exposing only API 29 must be rejected cleanly when this package
+/// was compiled against API 30. This tests version detection, not API fallback.
+test "lower API version is reported without attempting env creation" {
+  let lib = compile_fake("fake_api_v29")
+  try @raw.Runtime::load(lib) catch {
+    ApiMismatch(_, message, expected, actual) => {
+      inspect(expected, content="30")
+      inspect(actual, content="29")
+      assert_true(message.contains("GetApi(30) returned NULL"))
+    }
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected ApiMismatch")
+  }
+}
+
+///|
 test "missing OrtGetApiBase is a structured symbol error" {
   let lib = compile_fake("fake_no_symbol")
   try @raw.Runtime::load(lib) catch {
