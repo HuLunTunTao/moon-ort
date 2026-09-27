@@ -49,6 +49,8 @@ static int status_live = 0;
 static int alloc_live = 0;
 static int type_live = 0;
 static int meta_live = 0;
+static int rank_mismatch_mode = 0;
+static int rank_mismatch_input_type_calls = 0;
 static OrtEnv *const k_env = (OrtEnv *)(uintptr_t)0x21;
 static const char *k_empty = "";
 static const char *k_batch = "batch";
@@ -222,7 +224,10 @@ static OrtStatus *fake_create_session(
     );
     return make_status(ORT_FAIL, message);
   }
-  if (model_path == NULL || strcmp(model_path, "ok.onnx") != 0) {
+  if (model_path != NULL && strcmp(model_path, "rank-mismatch.onnx") == 0) {
+    rank_mismatch_mode = 1;
+    rank_mismatch_input_type_calls = 0;
+  } else if (model_path == NULL || strcmp(model_path, "ok.onnx") != 0) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -241,6 +246,8 @@ static void fake_release_session(OrtSession *input) {
   }
   session->magic = 0;
   free(session);
+  rank_mismatch_mode = 0;
+  rank_mismatch_input_type_calls = 0;
 }
 
 static OrtErrorCode fake_get_error_code(const OrtStatus *status) {
@@ -327,16 +334,21 @@ static FakeTypeInfo *make_type(int element, int rank, const int64_t *dims, const
 }
 
 static OrtStatus *fake_input_type(const OrtSession *session, size_t index, OrtTypeInfo **type_info) {
-  static const int64_t dims0[2] = {2, 3};
+  static const int64_t dims0[3] = {2, 3, 4};
   static const int64_t dims1[1] = {-1};
-  const char *symbols0[2];
+  const char *symbols0[3];
   const char *symbols1[1];
+  int rank = 2;
   (void)session;
   symbols0[0] = k_empty;
   symbols0[1] = k_empty;
+  symbols0[2] = "mismatch";
   symbols1[0] = k_batch;
   if (index == 0) {
-    *type_info = (OrtTypeInfo *)make_type(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, 2, dims0, symbols0);
+    if (rank_mismatch_mode && ++rank_mismatch_input_type_calls > 1) {
+      rank = 3;
+    }
+    *type_info = (OrtTypeInfo *)make_type(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, rank, dims0, symbols0);
     return NULL;
   }
   if (index == 1) {

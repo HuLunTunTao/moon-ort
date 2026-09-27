@@ -43,6 +43,12 @@ pub impl Show for OrtError with fn output(self, logger) {
 pub extend OrtError with Show::{to_string, output}
 
 ///|
+/// Build a structured invalid-argument error in higher-level API wrappers.
+pub fn OrtError::invalid_argument(message : String) -> OrtError {
+  InvalidArgument(message)
+}
+
+///|
 fn load_error(handle : Runtime) -> OrtError {
   match moon_ort_code(handle) {
     1 => MissingLibrary(moon_ort_path(handle), moon_ort_message(handle))
