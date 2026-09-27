@@ -217,3 +217,73 @@ test "failed run releases outputs created before failure" {
   session.close()
   rt.close()
 }
+
+///|
+/// The fake allocates both requested outputs before returning failure. The raw
+/// shim must release the entire partially populated output array.
+test "multi-output failure releases every orphaned output" {
+  let (rt, session) = open_fake_run(
+    compile_fake("fake_run"),
+    "multi-fail-run.onnx",
+  )
+  let input = @raw.Value::create_cpu_tensor(
+    rt,
+    @raw.dtype_f32,
+    make_shape([2L]),
+    add_f32_input,
+  )
+  let second_input = @raw.Value::create_cpu_tensor(
+    rt,
+    @raw.dtype_f32,
+    make_shape([2L]),
+    add_f32_input,
+  )
+  inspect(session.input_count(), content="2")
+  inspect(session.output_count(), content="2")
+  let input_names : FixedArray[String] = ["input", "second_input"]
+  let inputs : FixedArray[@raw.Value] = [input, second_input]
+  let output_names : FixedArray[String] = ["output", "second_output"]
+  try session.run(input_names, inputs, output_names) catch {
+    Status(code, message, api) => {
+      inspect(code, content="1")
+      inspect(api, content="Run")
+      inspect(message, content="run failed after output")
+    }
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected Status")
+  }
+  inspect(session.custom_metadata("status_live"), content="0")
+  inspect(session.custom_metadata("orphan_live"), content="0")
+  assert_true(bytes_equal(input.copy_bytes(), add_f32_input))
+  assert_true(bytes_equal(second_input.copy_bytes(), add_f32_input))
+  input.close()
+  second_input.close()
+  session.close()
+  rt.close()
+}
+
+///|
+/// Fake-only seam test: Run transports a rank-0 tensor through the raw API.
+/// The fake echoes a fixed scalar and does not validate ONNX graph execution.
+test "sync run preserves a scalar tensor shape and payload" {
+  let (rt, session) = open_fake_run(compile_fake("fake_run"), "scalar-run.onnx")
+  let scalar_bytes : Bytes = b"\x00\x00\x50\x40"
+  let input = @raw.Value::create_cpu_tensor(
+    rt,
+    @raw.dtype_f32,
+    make_shape([]),
+    scalar_bytes,
+  )
+  let outputs = session.run([session.input_name(0)], [input], [
+    session.output_name(0),
+  ])
+  let output = outputs[0]
+  inspect(output.shape().length(), content="0")
+  inspect(output.element_count(), content="1")
+  assert_true(bytes_equal(output.copy_bytes(), scalar_bytes))
+  input.close()
+  output.close()
+  session.close()
+  rt.close()
+}

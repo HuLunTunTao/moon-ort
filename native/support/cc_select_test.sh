@@ -33,7 +33,7 @@ CC= PATH="$with_gcc" /bin/sh native/support/cc_select.sh > "${root}.empty"
 printf '%s\n' '' > "${root}.empty.expected"
 cmp -s "${root}.empty" "${root}.empty.expected"
 
-for name in fake_api_mismatch fake_create_fail fake_env fake_no_symbol fake_run fake_session fake_tensor; do
+for name in fake_api_mismatch fake_api_v29 fake_create_fail fake_env fake_no_symbol fake_run fake_session fake_tensor; do
   env -u CC PATH="$cc_only" /bin/sh native/support/cc_compile.sh \
     "${root}-${name}.dylib" "native/support/${name}.c"
 done
