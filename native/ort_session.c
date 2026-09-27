@@ -1372,6 +1372,13 @@ static int copy_indexed_name(
     session_invalid(payload, api_name, "name is null");
     return -1;
   }
+  if (strlen(tmp) >= cap) {
+    if (free_alloc(api, allocator, tmp, payload, "AllocatorFree") != 0) {
+      return -1;
+    }
+    session_invalid(payload, api_name, "name is too long");
+    return -1;
+  }
   copy_cstr(dst, cap, tmp);
   return free_alloc(api, allocator, tmp, payload, "AllocatorFree");
 }
