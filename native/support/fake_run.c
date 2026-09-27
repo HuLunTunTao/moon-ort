@@ -15,6 +15,7 @@ typedef struct FakeOptions {
 typedef struct FakeSession {
   int magic;
   int fail;
+  int partial_info;
 } FakeSession;
 
 typedef struct FakeTensor {
@@ -195,7 +196,8 @@ static OrtStatus *fake_create_session(
   if (parsed == NULL || parsed->magic != FAKE_OPTIONS) {
     abort();
   }
-  if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0)) {
+  if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0 &&
+                             strcmp(model_path, "partial-info.onnx") != 0)) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -204,6 +206,7 @@ static OrtStatus *fake_create_session(
   }
   session->magic = FAKE_SESSION;
   session->fail = strcmp(model_path, "fail-run.onnx") == 0;
+  session->partial_info = strcmp(model_path, "partial-info.onnx") == 0;
   session_live++;
   *out = (OrtSession *)session;
   return NULL;
@@ -408,6 +411,9 @@ static OrtStatus *fake_type_and_shape(const OrtValue *value, OrtTensorTypeAndSha
   }
   info_live++;
   *out = (OrtTensorTypeAndShapeInfo *)info;
+  if (tensor->rank == 1 && tensor->dims[0] == 23) {
+    return make_status(ORT_FAIL, "fake type and shape failed after writing output");
+  }
   return NULL;
 }
 
@@ -499,6 +505,12 @@ static OrtStatus *fake_run(
     orphan_live++;
     outputs[0] = (OrtValue *)output;
     return make_status(ORT_FAIL, "run failed after output");
+  }
+  if (parsed->partial_info) {
+    static const int64_t info_dims[1] = {23};
+    output = make_tensor(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, 1, info_dims, NULL, sizeof(float) * 23);
+    outputs[0] = (OrtValue *)output;
+    return NULL;
   }
   if (!matches_add_input((OrtValue *)inputs[0])) {
     return make_status(ORT_INVALID_ARGUMENT, "input does not match add_f32 fixture");

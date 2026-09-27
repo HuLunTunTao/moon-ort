@@ -304,7 +304,7 @@ ValuePayload *moon_ort_value_create(
   }
   status = api->GetTensorTypeAndShape(value, &info);
   if (status != NULL) {
-    drop_created(api, value, NULL);
+    drop_created(api, value, info);
     moon_ort_write_status(
       &payload->code,
       &payload->status_code,
@@ -557,7 +557,7 @@ ValuePayload *moon_ort_value_adopt(EnvPayload *env, OrtValue *ort_value) {
   }
   status = api->GetTensorTypeAndShape(ort_value, &info);
   if (status != NULL) {
-    api->ReleaseValue(ort_value);
+    drop_created(api, ort_value, info);
     moon_ort_write_status(
       &payload->code,
       &payload->status_code,
