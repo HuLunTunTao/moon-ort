@@ -17,6 +17,7 @@ typedef struct FakeSession {
   int fail;
   int perf_echo;
   int partial_info;
+  int long_input_name;
 } FakeSession;
 
 typedef struct FakeTensor {
@@ -199,7 +200,8 @@ static OrtStatus *fake_create_session(
   }
   if (model_path == NULL || (strcmp(model_path, "ok.onnx") != 0 && strcmp(model_path, "fail-run.onnx") != 0 &&
                              strcmp(model_path, "perf.onnx") != 0 &&
-                             strcmp(model_path, "partial-info.onnx") != 0)) {
+                             strcmp(model_path, "partial-info.onnx") != 0 &&
+                             strcmp(model_path, "long-input-name.onnx") != 0)) {
     return make_status(ORT_NO_SUCHFILE, "model file not found");
   }
   session = calloc(1, sizeof(*session));
@@ -210,6 +212,7 @@ static OrtStatus *fake_create_session(
   session->fail = strcmp(model_path, "fail-run.onnx") == 0;
   session->perf_echo = strcmp(model_path, "perf.onnx") == 0;
   session->partial_info = strcmp(model_path, "partial-info.onnx") == 0;
+  session->long_input_name = strcmp(model_path, "long-input-name.onnx") == 0;
   session_live++;
   *out = (OrtSession *)session;
   return NULL;
@@ -270,11 +273,22 @@ static OrtStatus *fake_output_count(const OrtSession *session, size_t *out) {
 }
 
 static OrtStatus *fake_input_name(const OrtSession *session, size_t index, OrtAllocator *allocator, char **value) {
-  (void)session;
+  const FakeSession *parsed = (const FakeSession *)session;
+  char long_name[1025];
   if (index != 0) {
     return make_status(ORT_INVALID_ARGUMENT, "input index");
   }
-  *value = alloc_dup(allocator, "input");
+  if (parsed == NULL || parsed->magic != FAKE_SESSION) {
+    abort();
+  }
+  if (parsed->long_input_name) {
+    memset(long_name, 'x', sizeof(long_name) - 1);
+    long_name[1023] = 'y';
+    long_name[1024] = '\0';
+    *value = alloc_dup(allocator, long_name);
+  } else {
+    *value = alloc_dup(allocator, "input");
+  }
   if (*value == NULL) {
     return make_status(ORT_FAIL, "out of memory");
   }
@@ -572,6 +586,11 @@ static OrtStatus *fake_lookup(
   }
   if (key != NULL && strcmp(key, "orphan_live") == 0) {
     snprintf(text, sizeof(text), "%d", orphan_live);
+    *value = alloc_dup(allocator, text);
+    return *value == NULL ? make_status(ORT_FAIL, "out of memory") : NULL;
+  }
+  if (key != NULL && strcmp(key, "alloc_live") == 0) {
+    snprintf(text, sizeof(text), "%d", alloc_live);
     *value = alloc_dup(allocator, text);
     return *value == NULL ? make_status(ORT_FAIL, "out of memory") : NULL;
   }
