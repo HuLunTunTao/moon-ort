@@ -8,6 +8,14 @@ pub fn compile_fake(name : String, output : String) -> Int {
 }
 
 ///|
+extern "C" fn temp_suffix_ffi() -> String = "moon_ort_test_temp_suffix"
+
+///|
+pub fn temp_suffix() -> String {
+  temp_suffix_ffi()
+}
+
+///|
 extern "C" fn verify_cc_select_ffi() -> Int = "moon_ort_test_verify_cc_select"
 
 ///|

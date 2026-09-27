@@ -3,10 +3,52 @@
 #include <ctype.h>
 #include <spawn.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 extern char **environ;
+
+enum { MAX_TEST_TEMP_PATHS = 512, TEST_TEMP_PATH_CAP = 1024 };
+
+static char test_temp_paths[MAX_TEST_TEMP_PATHS][TEST_TEMP_PATH_CAP];
+static size_t test_temp_path_count;
+static int test_temp_cleanup_registered;
+static atomic_uint_least32_t test_temp_counter;
+
+static void cleanup_test_temp_paths(void) {
+  size_t index;
+  for (index = 0; index < test_temp_path_count; index++) {
+    (void)unlink(test_temp_paths[index]);
+  }
+}
+
+static int register_test_temp_path(const char *path) {
+  if (test_temp_path_count >= MAX_TEST_TEMP_PATHS) {
+    return -1;
+  }
+  if (!test_temp_cleanup_registered) {
+    if (atexit(cleanup_test_temp_paths) != 0) {
+      return -1;
+    }
+    test_temp_cleanup_registered = 1;
+  }
+  copy_cstr(test_temp_paths[test_temp_path_count], TEST_TEMP_PATH_CAP, path);
+  test_temp_path_count++;
+  return 0;
+}
+
+moonbit_string_t moon_ort_test_temp_suffix(void) {
+  char suffix[64];
+  uint_least32_t counter = atomic_fetch_add_explicit(
+      &test_temp_counter, 1, memory_order_relaxed);
+  if (snprintf(suffix, sizeof(suffix), "%ld-%u", (long)getpid(), (unsigned int)counter) >=
+      (int)sizeof(suffix)) {
+    return NULL;
+  }
+  return utf8_to_moonbit(suffix);
+}
 
 static int fake_name_is_safe(const char *name) {
   const unsigned char *cursor = (const unsigned char *)name;
@@ -62,7 +104,8 @@ int32_t moon_ort_test_compile_fake(
   }
   if (utf16_to_utf8(name, Moonbit_array_length(name), fake_name, sizeof(fake_name)) < 0 ||
       utf16_to_utf8(output, Moonbit_array_length(output), output_path, sizeof(output_path)) < 0 ||
-      !fake_name_is_safe(fake_name) || !output_path_is_safe(output_path)) {
+      !fake_name_is_safe(fake_name) || !output_path_is_safe(output_path) ||
+      register_test_temp_path(output_path) != 0) {
     return -1;
   }
   if (snprintf(source_path, sizeof(source_path), "native/support/%s.c", fake_name) >=
@@ -98,7 +141,7 @@ int32_t moon_ort_test_write_file(moonbit_string_t path, moonbit_string_t content
   if (path == NULL || contents == NULL ||
       utf16_to_utf8(path, Moonbit_array_length(path), output_path, sizeof(output_path)) < 0 ||
       utf16_to_utf8(contents, Moonbit_array_length(contents), buffer, sizeof(buffer)) < 0 ||
-      !output_path_is_safe(output_path)) {
+      !output_path_is_safe(output_path) || register_test_temp_path(output_path) != 0) {
     return -1;
   }
   file = fopen(output_path, "wb");

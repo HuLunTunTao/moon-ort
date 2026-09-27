@@ -89,7 +89,7 @@ fn official_runtime() -> @raw.Runtime? raise Failure {
 
 ///|
 fn compile_fake_official(name : String) -> String raise Failure {
-  let path = "/tmp/moon-ort-official-\{name}.dylib"
+  let path = "/tmp/moon-ort-official-\{name}-\{@test_support.temp_suffix()}.dylib"
   let code = @test_support.compile_fake(name, path)
   if code != 0 {
     fail("c compiler failed to build \{name}: \{code}")
