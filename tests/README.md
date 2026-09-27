@@ -15,4 +15,5 @@
 
 `failure_cases.json` 中 `runner` 与 `executable_now` 描述参考 ORT 脚本可否直接执行；
 `moonbit_coverage` 描述对应契约是否有 MoonBit 回归测试，不应把二者混为一谈。项目的
-MoonBit 质量门及其证据要求见仓库根目录 `CONTRIBUTING.md`。
+MoonBit 质量门及其证据要求见仓库根目录 `CONTRIBUTING.md`。对于参考脚本不可执行的草案，
+契约校验要求提供 `blocked_on` 或 `moonbit_coverage`；覆盖指引不代表参考脚本会运行 SDK 测试。

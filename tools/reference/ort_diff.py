@@ -5,7 +5,9 @@ This is a test aid. It is not imported by the MoonBit SDK and must not be
 packaged as a runtime dependency. Positive cases must match the analytical
 reference in testdata/cases/manifest.json. Negative cases must fail with the
 recorded error class. Draft FFI failures in tests/failure_cases.json are
-checked for completeness only; this script does not import an SDK.
+checked for completeness only; this script does not import an SDK. A draft
+must either explain why it is blocked on the reference runner or point to
+MoonBit coverage; that pointer is metadata, not a claim that this tool runs it.
 """
 
 import argparse
@@ -221,8 +223,30 @@ def check_failure_contract(manifest: dict, contract: dict) -> None:
                 raise DiffError(f"{case_id} must be a session failure")
             executable.append(manifest_id)
             continue
-        if not case.get("blocked_on"):
-            raise DiffError(f"{case_id} draft is missing blocked_on")
+        coverage = case.get("moonbit_coverage")
+        if coverage is not None:
+            if not isinstance(coverage, list) or not coverage:
+                raise DiffError(f"{case_id} moonbit_coverage must be a non-empty list")
+            for item in coverage:
+                if not isinstance(item, str):
+                    raise DiffError(f"{case_id} moonbit_coverage entries must be strings")
+                source, separator, description = item.partition(":")
+                source_path = Path(source)
+                if (
+                    not separator
+                    or source_path.suffix != ".mbt"
+                    or source_path.is_absolute()
+                    or ".." in source_path.parts
+                    or not (ROOT / source_path).is_file()
+                    or not description.strip()
+                ):
+                    raise DiffError(
+                        f"{case_id} has malformed moonbit_coverage entry: {item!r}"
+                    )
+        if not case.get("blocked_on") and not coverage:
+            raise DiffError(
+                f"{case_id} draft must provide blocked_on or moonbit_coverage"
+            )
         if "manifest_id" in case:
             raise DiffError(f"{case_id} draft must not point at an executable manifest case")
         if case.get("layer") != "ffi" or case.get("kind") not in ("failure", "lifecycle"):

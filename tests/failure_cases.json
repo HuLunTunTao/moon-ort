@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "ort_version": "1.30.0",
-  "note": "executable_now 表示 tools/reference/ort_diff.py 能否直接对官方 ONNX Runtime 1.30.0 执行该场景；moonbit_coverage 单独记录是否有对应 MoonBit 回归测试。",
+  "note": "executable_now 表示 tools/reference/ort_diff.py 能否直接对官方 ONNX Runtime 1.30.0 执行该场景；moonbit_coverage 单独记录 MoonBit 回归覆盖（只作指引，不由参考脚本执行）。不可执行的草案必须提供 blocked_on 或 moonbit_coverage。",
   "cases": [
     {
       "id": "invalid_model",
@@ -10,7 +10,7 @@
       "executable_now": true,
       "runner": "tools/reference/ort_diff.py",
       "manifest_id": "invalid_model",
-      "moonbit_coverage": ["src/session/failure_test.mbt: missing model and empty path are structured errors"],
+      "moonbit_coverage": ["src/session/failure_test.mbt: covers empty path and missing file only; does not load invalid_model.onnx bytes"],
       "trigger": "用 testdata/negative/invalid_model.onnx 创建会话。该文件是固定的非 protobuf 字节。",
       "expected": {
         "outcome": "error",
