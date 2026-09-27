@@ -8,6 +8,7 @@ pub suberror OrtError {
   SymbolNotFound(String, String)
   ApiMismatch(String, String, Int, Int)
   Status(Int, String, String)
+  TypeInfoUnavailable(String, String)
   AlreadyClosed(String)
   UseAfterClose(String)
   InvalidArgument(String)
@@ -31,6 +32,10 @@ pub impl Show for OrtError with fn output(self, logger) {
     Status(code, message, api) =>
       logger.write_string(
         "ort status; api=\{api}; code=\{code}; message=\{message}",
+      )
+    TypeInfoUnavailable(api, message) =>
+      logger.write_string(
+        "type info unavailable; api=\{api}; message=\{message}",
       )
     AlreadyClosed(api) => logger.write_string("already closed; api=\{api}")
     UseAfterClose(api) => logger.write_string("use after close; api=\{api}")
@@ -116,6 +121,7 @@ fn raise_handle(
   match code {
     0 => ()
     4 => raise Status(status_code, message, api)
+    9 => raise TypeInfoUnavailable(api, message)
     5 => raise AlreadyClosed(api)
     6 => raise UseAfterClose(api)
     _ => raise InvalidArgument(message)

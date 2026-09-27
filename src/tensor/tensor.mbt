@@ -99,6 +99,7 @@ fn lift(error : @raw.OrtError, api : String) -> TensorError {
   match error {
     @raw.UseAfterClose(_) => UseAfterClose(api)
     @raw.AlreadyClosed(_) => AlreadyClosed(api)
+    @raw.TypeInfoUnavailable(_, message) => InvalidArgument(message)
     @raw.InvalidArgument(message) => InvalidArgument(message)
     @raw.Status(code, message, status_api) => Status(code, message, status_api)
     @raw.MissingLibrary(_, _)
