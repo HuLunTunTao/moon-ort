@@ -94,6 +94,17 @@ static void session_invalid(SessionPayload *payload, const char *api, const char
   );
 }
 
+static void session_type_info_unavailable(
+  SessionPayload *payload,
+  const char *api,
+  const char *text
+) {
+  payload->code = MOON_ORT_TYPE_INFO_UNAVAILABLE;
+  payload->status_code = -1;
+  copy_cstr(payload->api_name, sizeof(payload->api_name), api);
+  copy_cstr(payload->message, sizeof(payload->message), text);
+}
+
 static void release_options(OptionsPayload *payload) {
   EnvPayload *env;
   if (payload->state != MOON_ORT_STATE_OPEN) {
@@ -707,13 +718,13 @@ static int open_tensor_info(
   api = payload->env->api;
   if (is_output) {
     if (api->SessionGetOutputTypeInfo == NULL) {
-      session_invalid(payload, api_name, "SessionGetOutputTypeInfo is unavailable");
+      session_type_info_unavailable(payload, api_name, "SessionGetOutputTypeInfo is unavailable");
       return -1;
     }
     status = api->SessionGetOutputTypeInfo(payload->session, (size_t)index, info);
   } else {
     if (api->SessionGetInputTypeInfo == NULL) {
-      session_invalid(payload, api_name, "SessionGetInputTypeInfo is unavailable");
+      session_type_info_unavailable(payload, api_name, "SessionGetInputTypeInfo is unavailable");
       return -1;
     }
     status = api->SessionGetInputTypeInfo(payload->session, (size_t)index, info);
@@ -741,7 +752,7 @@ static int open_tensor_info(
       api->ReleaseTypeInfo(*info);
       *info = NULL;
     }
-    session_invalid(payload, api_name, "type info is unavailable");
+    session_type_info_unavailable(payload, api_name, "type info is unavailable");
     return -1;
   }
   status = api->CastTypeInfoToTensorInfo(*info, tensor);
@@ -786,7 +797,7 @@ static int32_t io_element_type(SessionPayload *payload, int32_t index, int is_ou
   api = payload->env->api;
   if (api->GetTensorElementType == NULL) {
     api->ReleaseTypeInfo(info);
-    session_invalid(payload, "GetTensorElementType", "GetTensorElementType is unavailable");
+    session_type_info_unavailable(payload, "GetTensorElementType", "GetTensorElementType is unavailable");
     return -1;
   }
   status = api->GetTensorElementType(tensor, &element);
@@ -833,7 +844,7 @@ static int64_t *io_shape(SessionPayload *payload, int32_t index, int is_output) 
   api = payload->env->api;
   if (api->GetDimensionsCount == NULL || api->GetDimensions == NULL) {
     api->ReleaseTypeInfo(info);
-    session_invalid(payload, "GetDimensions", "GetDimensions is unavailable");
+    session_type_info_unavailable(payload, "GetDimensions", "GetDimensions is unavailable");
     return moonbit_empty_int64_array;
   }
   status = api->GetDimensionsCount(tensor, &rank);

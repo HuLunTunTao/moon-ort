@@ -45,6 +45,7 @@ fn lift_ort(error : @raw.OrtError) -> RunError {
     @raw.UseAfterClose(api) => UseAfterClose(api)
     @raw.AlreadyClosed(api) => AlreadyClosed(api)
     @raw.InvalidArgument(message) => InvalidArgument(message)
+    @raw.TypeInfoUnavailable(_, message) => InvalidArgument(message)
     @raw.Status(code, message, api) => Status(code, message, api)
     @raw.MissingLibrary(_, _)
     | @raw.SymbolNotFound(_, _)
@@ -61,14 +62,6 @@ fn lift_tensor(error : @tensor.TensorError) -> RunError {
     @tensor.InvalidArgument(message) => InvalidArgument(message)
     @tensor.Status(code, message, api) => Status(code, message, api)
   }
-}
-
-///|
-fn type_info_unavailable(message : String) -> Bool {
-  message == "SessionGetInputTypeInfo is unavailable" ||
-  message == "type info is unavailable" ||
-  message == "GetTensorElementType is unavailable" ||
-  message == "GetDimensions is unavailable"
 }
 
 ///|
@@ -278,21 +271,13 @@ fn input_contract(
   index : Int,
 ) -> (DType, Array[Dimension])? raise RunError {
   let dtype = session.input_dtype(index) catch {
-    @raw.InvalidArgument(message) => {
-      if type_info_unavailable(message) {
-        return None
-      }
-      raise InvalidArgument(message)
-    }
+    @raw.TypeInfoUnavailable(_, _) => return None
+    @raw.InvalidArgument(message) => raise InvalidArgument(message)
     error => raise lift_ort(error)
   }
   let dims = session.input_dimensions(index) catch {
-    @raw.InvalidArgument(message) => {
-      if type_info_unavailable(message) {
-        return None
-      }
-      raise InvalidArgument(message)
-    }
+    @raw.TypeInfoUnavailable(_, _) => return None
+    @raw.InvalidArgument(message) => raise InvalidArgument(message)
     error => raise lift_ort(error)
   }
   Some((dtype, dims))

@@ -188,6 +188,36 @@ test "run rejects dtype and shape mismatches from session metadata" {
 }
 
 ///|
+test "run skips dtype validation when ORT type info is unavailable" {
+  let tensors = @raw.Runtime::load(compile_fake("fake_tensor"))
+  let (rt, session) = open_run(
+    compile_fake("fake_session_type_info_unavailable"),
+    "ok.onnx",
+  )
+  let features = @tensor.Tensor::from_i64(tensors, [2L, 3L], [
+    0L, 0L, 0L, 0L, 0L, 0L,
+  ])
+  let batch = @tensor.Tensor::from_i64(tensors, [1L], [7L])
+  try
+    session.run(["features", "batch_id"], [features, batch], ["scores"])
+  catch {
+    // fake_session has no OrtCreateTensorAsOrtValue, so reaching this error
+    // proves unavailable type info was skipped rather than misreported as a
+    // dtype mismatch or ordinary argument error.
+    InvalidArgument(message) =>
+      inspect(message, content="tensor API is unavailable")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected tensor API error after metadata was skipped")
+  }
+  features.close()
+  batch.close()
+  session.close()
+  rt.close()
+  tensors.close()
+}
+
+///|
 /// fake_session reports a symbolic batch but cannot create tensors or Run.
 /// A shape that matches therefore fails while copying the input, not as
 /// ShapeMismatch.

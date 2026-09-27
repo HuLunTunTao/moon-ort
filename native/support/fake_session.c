@@ -380,6 +380,7 @@ static void fake_release_type(OrtTypeInfo *input) {
   free(info);
 }
 
+#ifndef MOON_ORT_FAKE_TYPE_INFO_UNAVAILABLE
 static OrtStatus *fake_element_type(const OrtTensorTypeAndShapeInfo *info, enum ONNXTensorElementDataType *out) {
   const FakeTypeInfo *parsed = (const FakeTypeInfo *)info;
   if (parsed == NULL || parsed->magic != FAKE_TYPE) {
@@ -388,6 +389,7 @@ static OrtStatus *fake_element_type(const OrtTensorTypeAndShapeInfo *info, enum 
   *out = (enum ONNXTensorElementDataType)parsed->element;
   return NULL;
 }
+#endif
 
 static OrtStatus *fake_rank(const OrtTensorTypeAndShapeInfo *info, size_t *out) {
   const FakeTypeInfo *parsed = (const FakeTypeInfo *)info;
@@ -557,7 +559,9 @@ static const OrtApi *fake_get_api(uint32_t version) {
     api.SessionGetOutputTypeInfo = fake_output_type;
     api.CastTypeInfoToTensorInfo = fake_cast_tensor;
     api.ReleaseTypeInfo = fake_release_type;
+#ifndef MOON_ORT_FAKE_TYPE_INFO_UNAVAILABLE
     api.GetTensorElementType = fake_element_type;
+#endif
     api.GetDimensionsCount = fake_rank;
     api.GetDimensions = fake_dims;
     api.GetSymbolicDimensions = fake_symbols;
