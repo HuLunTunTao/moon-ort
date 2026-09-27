@@ -72,9 +72,11 @@ fn shape_text(dims : Array[Dimension]) -> String {
 fn collect_dimensions(
   shape : FixedArray[Int64],
   names : FixedArray[String],
-) -> Array[Dimension] {
+) -> Array[Dimension] raise @raw.OrtError {
   if shape.length() != names.length() {
-    abort("shape rank and dimension names disagree")
+    raise @raw.OrtError::invalid_argument(
+      "shape rank and dimension names disagree",
+    )
   }
   let dims : Array[Dimension] = []
   for i = 0; i < shape.length(); i = i + 1 {

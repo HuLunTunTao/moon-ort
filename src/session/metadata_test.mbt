@@ -42,3 +42,21 @@ test "session reads static and dynamic shapes and model metadata" {
   session.close()
   rt.close()
 }
+
+///|
+test "metadata rank mismatch is a structured error" {
+  let lib = compile_fake("fake_session")
+  let rt = @raw.Runtime::load(lib)
+  let options = @session.SessionOptions::create(rt)
+  let session = @session.Session::create(rt, options, "rank-mismatch.onnx")
+  options.close()
+  try session.input_dimensions(0) catch {
+    @raw.InvalidArgument(message) =>
+      inspect(message, content="shape rank and dimension names disagree")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected InvalidArgument")
+  }
+  session.close()
+  rt.close()
+}
