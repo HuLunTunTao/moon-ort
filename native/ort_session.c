@@ -1517,10 +1517,13 @@ static int name_in_session(SessionPayload *payload, SessionNameIndex *index, con
 static int moon_name_utf8(moonbit_string_t name, char *dst, size_t cap) {
   int32_t len;
   if (name == NULL) {
-    return -1;
+    return -3;
   }
   len = Moonbit_array_length(name);
-  if (len <= 0) {
+  if (len == 0) {
+    return -3;
+  }
+  if (len < 0) {
     return -1;
   }
   return utf16_to_utf8(name, len, dst, cap) < 0 ? -2 : 0;
@@ -1603,6 +1606,10 @@ void **moon_ort_session_run(
       goto cleanup;
     }
     converted = moon_name_utf8(input_names[i], slot, 1024);
+    if (converted == -3) {
+      session_invalid(payload, "Run", "input name is empty");
+      goto cleanup;
+    }
     if (converted == -1) {
       session_invalid(payload, "Run", "input name is not in the session");
       goto cleanup;
@@ -1630,6 +1637,10 @@ void **moon_ort_session_run(
     char *slot = output_store + ((size_t)i * 1024);
     output_ptrs[i] = slot;
     converted = moon_name_utf8(output_names[i], slot, 1024);
+    if (converted == -3) {
+      session_invalid(payload, "Run", "output name is empty");
+      goto cleanup;
+    }
     if (converted == -1) {
       session_invalid(payload, "Run", "output name is not in the session");
       goto cleanup;

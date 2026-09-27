@@ -88,6 +88,35 @@ test "run rejects a wrong input or output name" {
 }
 
 ///|
+test "run distinguishes empty names from names outside the session" {
+  let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
+  let input = @raw.Value::create_cpu_tensor(
+    rt,
+    @raw.dtype_f32,
+    make_shape([2L]),
+    add_f32_input,
+  )
+  let inputs : FixedArray[@raw.Value] = [input]
+  let empty_input : FixedArray[String] = [""]
+  let empty_output : FixedArray[String] = [""]
+  try session.run(empty_input, inputs, ["output"]) catch {
+    InvalidArgument(message) => inspect(message, content="input name is empty")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected InvalidArgument")
+  }
+  try session.run(["input"], inputs, empty_output) catch {
+    InvalidArgument(message) => inspect(message, content="output name is empty")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected InvalidArgument")
+  }
+  input.close()
+  session.close()
+  rt.close()
+}
+
+///|
 test "run rejects an input count mismatch" {
   let (rt, session) = open_fake_run(compile_fake("fake_run"), "ok.onnx")
   let input = @raw.Value::create_cpu_tensor(
