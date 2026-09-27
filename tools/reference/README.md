@@ -31,5 +31,6 @@ mlpython3119 -m venv "$ref_venv"
 "$ref_venv/bin/python" tools/reference/ort_diff.py compare path/to/dump.json
 ```
 
-`tests/failure_cases.json` 里的 FFI 生命周期草案只做字段完整性检查。本分支没有可导入的
-SDK，这些草案不会被伪装成已经通过的 MoonBit 测试。
+`tests/failure_cases.json` 将官方 ORT 参考脚本的可执行状态与 MoonBit 回归测试覆盖分别记录。
+参考脚本只验证其明确声明的 Python ORT 场景；SDK 行为以 `moonbit_coverage` 指向的 MoonBit
+测试为准。未列出覆盖的契约仍是待补测试项，不应推断为已验证。

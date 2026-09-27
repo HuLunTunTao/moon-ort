@@ -11,6 +11,9 @@
 `moon-ort` 使用官方 ONNX Runtime 1.30.0 C API，并以动态库方式加载。
 它不提供静态链接、也不包含ONNX运行时。使用需要提前在目标设备上自行部署ONNX运行时。
 
+张量数值字节序固定为 little-endian；raw `Value` API 按此顺序复制字节，不做字节交换。
+当前支持并验证的平台为 little-endian；big-endian 主机不受支持。
+
 ## 已支持的能力
 
 - 从本地 ONNX 文件创建 CPU `Session`

@@ -281,9 +281,9 @@ fn agree(
 /// Copy `values` into an `f32` CPU tensor.
 ///
 /// `shape` is the concrete runtime shape. Its length is the rank, so the same
-/// constructor covers a scalar, a vector, and a rank-2 batch. Bytes are
-/// little-endian, which is the native endianness copied by the C shim on
-/// macOS arm64. The caller's array is not borrowed.
+/// constructor covers a scalar, a vector, and a rank-2 batch. f32 values use
+/// the API's fixed little-endian byte order. Big-endian hosts are unsupported.
+/// The caller's array is not borrowed.
 pub fn Tensor::from_f32(
   runtime : @raw.Runtime,
   shape : Array[Int64],
@@ -301,7 +301,8 @@ pub fn Tensor::from_f32(
 }
 
 ///|
-/// Copy `values` into an `i64` CPU tensor. See `Tensor::from_f32` for shape rules.
+/// Copy `values` into an `i64` CPU tensor using fixed little-endian byte order.
+/// See `Tensor::from_f32` for shape rules. The caller's array is not borrowed.
 pub fn Tensor::from_i64(
   runtime : @raw.Runtime,
   shape : Array[Int64],
@@ -319,7 +320,8 @@ pub fn Tensor::from_i64(
 }
 
 ///|
-/// Copy `values` into a `bool` CPU tensor. See `Tensor::from_f32` for shape rules.
+/// Copy `values` into a `bool` CPU tensor, encoding false/true as `0x00`/`0x01`.
+/// See `Tensor::from_f32` for shape rules. The caller's array is not borrowed.
 pub fn Tensor::from_bool(
   runtime : @raw.Runtime,
   shape : Array[Int64],

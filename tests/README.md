@@ -1,12 +1,18 @@
 # 失败用例契约
 
-本目录目前只有数据和说明，没有 MoonBit 源文件。
+本目录保存失败用例契约；MoonBit 实现测试位于 `src/`。早期 `agent/test/m1-fixtures`
+分支创建时，仓库尚无 FFI、Session、Tensor 或 Run SDK 包，因此当时不能直接导入这些 API；
+这只是历史状态，不代表当前测试覆盖。
 
-`agent/test/m1-fixtures` 从基线 `63c082c` 拉出时，仓库只有 `moon.mod`，没有 FFI 包，也没有
-Session、Tensor 或 Run 的 SDK 包。失败用例因此不能导入尚未合并的 API。可在官方 ONNX
-Runtime 上观察的四条负例放在 `failure_cases.json`，由 `tools/reference/ort_diff.py verify`
-执行。环境句柄的构造、重复关闭、关闭后使用、空句柄和 `OrtStatus` 清理仍是草案，等 FFI
-实现合并后再写成 MoonBit 测试。
+当前 MoonBit 回归测试覆盖：
 
-因为本分支没有 `.mbt` 文件，`moon fmt --check`、`moon check --deny-warn` 和
-`moon test --deny-warn` 不作为本任务的通过证据。
+- `src/raw/load_test.mbt`：缺失库、API 版本不匹配、缺少 ORT 符号、环境构造失败及状态清理、环境句柄关闭/关闭后使用。
+- `src/raw/handle_fail_test.mbt`：Session、SessionOptions、Tensor 句柄的重复关闭、关闭后使用和参数校验。
+- `src/raw/run_test.mbt`、`src/session/run_test.mbt`：输入/输出名称、输入数量、缺失输入、类型和 shape 校验，以及失败时资源清理。
+- `src/session/failure_test.mbt`、`src/session/metadata_test.mbt`、`src/session/session_test.mbt`：模型路径、元数据、选项及公开 API 错误行为。
+- `src/tensor/tensor_test.mbt`、`src/tensor/tensor_wbtest.mbt`、`src/raw/value_test.mbt`：Tensor 构造、关闭、固定 i64/bool 字节布局、标量/零维 shape 与 f32/i64/bool 数据。
+- `src/session/run_official_test.mbt`：配置错误的官方库会失败；配置官方 ONNX Runtime 1.30.0 时运行夹具比较。未配置库时仅此官方集成测试按约定跳过。
+
+`failure_cases.json` 中 `runner` 与 `executable_now` 描述参考 ORT 脚本可否直接执行；
+`moonbit_coverage` 描述对应契约是否有 MoonBit 回归测试，不应把二者混为一谈。项目的
+MoonBit 质量门及其证据要求见仓库根目录 `CONTRIBUTING.md`。

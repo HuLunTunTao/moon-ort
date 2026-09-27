@@ -28,7 +28,9 @@ fn Value::check(self : Value) -> Unit raise OrtError {
 }
 
 ///|
-/// Copy `data` into a CPU tensor. `data` is native-endian and is not borrowed.
+/// Copy `data` into a CPU tensor. For numeric element types, `data` must use
+/// the fixed little-endian byte order also used by the Tensor API. The bytes
+/// are copied verbatim and are not borrowed; big-endian hosts are unsupported.
 ///
 /// `shape` is a concrete shape: every dimension is non-negative. Rank 0 is a
 /// scalar. Supported element types are `dtype_f32`, `dtype_i64`, and `dtype_bool`.
@@ -87,7 +89,8 @@ pub fn Value::byte_count(self : Value) -> Int raise OrtError {
 }
 
 ///|
-/// Copy the tensor bytes out. The returned buffer does not alias ORT memory.
+/// Copy tensor bytes out in the fixed little-endian representation used by
+/// the API. The returned buffer does not alias ORT memory.
 pub fn Value::copy_bytes(self : Value) -> Bytes raise OrtError {
   self.guard_open("Value::copy_bytes")
   let data = moon_ort_value_copy_bytes(self)

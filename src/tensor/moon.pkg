@@ -5,3 +5,7 @@ import {
 import {
   "HuLunTunTao/moon-ort/src/test_support",
 } for "test"
+
+import {
+  "HuLunTunTao/moon-ort/src/test_support",
+} for "wbtest"

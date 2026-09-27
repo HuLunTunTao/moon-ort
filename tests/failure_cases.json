@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "ort_version": "1.30.0",
-  "note": "可执行用例由 tools/reference/ort_diff.py 对官方 ONNX Runtime 1.30.0 运行。FFI 草案只描述步骤 1～2 的失败契约，本分支没有可导入的 SDK，不能写成 MoonBit 测试。",
+  "note": "executable_now 表示 tools/reference/ort_diff.py 能否直接对官方 ONNX Runtime 1.30.0 执行该场景；moonbit_coverage 单独记录是否有对应 MoonBit 回归测试。",
   "cases": [
     {
       "id": "invalid_model",
@@ -10,6 +10,7 @@
       "executable_now": true,
       "runner": "tools/reference/ort_diff.py",
       "manifest_id": "invalid_model",
+      "moonbit_coverage": ["src/session/failure_test.mbt: missing model and empty path are structured errors"],
       "trigger": "用 testdata/negative/invalid_model.onnx 创建会话。该文件是固定的非 protobuf 字节。",
       "expected": {
         "outcome": "error",
@@ -24,6 +25,7 @@
       "executable_now": true,
       "runner": "tools/reference/ort_diff.py",
       "manifest_id": "add_f32_wrong_type",
+      "moonbit_coverage": ["src/session/run_test.mbt: run rejects dtype and shape mismatches from session metadata"],
       "trigger": "对 add_f32.onnx 的 input 提交 int64，模型要求 float32，shape 仍为 [2]。",
       "expected": {
         "outcome": "error",
@@ -38,6 +40,7 @@
       "executable_now": true,
       "runner": "tools/reference/ort_diff.py",
       "manifest_id": "add_f32_wrong_shape",
+      "moonbit_coverage": ["src/session/run_test.mbt: run rejects dtype and shape mismatches from session metadata"],
       "trigger": "对 add_f32.onnx 的 input 提交 float32 shape [3]，模型要求 [2]。",
       "expected": {
         "outcome": "error",
@@ -52,6 +55,7 @@
       "executable_now": true,
       "runner": "tools/reference/ort_diff.py",
       "manifest_id": "two_inputs_i64_missing_input",
+      "moonbit_coverage": ["src/session/run_test.mbt: run rejects a missing input and a duplicate name"],
       "trigger": "对 two_inputs_i64.onnx 只提交 left，不提交 right。",
       "expected": {
         "outcome": "error",
@@ -64,7 +68,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 FFI 运行时加载实现，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: missing library returns attempted path"],
       "trigger": "在搜索路径中不存在 ORT 共享库时加载运行时。",
       "expected": {
         "outcome": "error",
@@ -77,7 +81,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 FFI API 协商实现，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: api mismatch reports expected and actual versions"],
       "trigger": "共享库可以加载，但 C API 版本不符合已固定的 ORT v1.30.0 约定。",
       "expected": {
         "outcome": "error",
@@ -90,7 +94,7 @@
       "kind": "lifecycle",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: env close is once and later use fails", "src/raw/load_test.mbt: repeated env construct and close does not crash"],
       "trigger": "成功创建环境后关闭一次。",
       "expected": {
         "outcome": "success",
@@ -103,7 +107,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: env close is once and later use fails"],
       "trigger": "对同一个环境关闭两次。",
       "expected": {
         "outcome": "error",
@@ -116,7 +120,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 Env 句柄实现，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: env close is once and later use fails"],
       "trigger": "关闭环境后再次用它创建或查询资源。",
       "expected": {
         "outcome": "error",
@@ -129,7 +133,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有句柄封装，不能导入未发布的 SDK。",
+      "blocked_on": "当前测试集中没有针对 null handle 的独立回归断言。",
       "trigger": "把空句柄传入需要有效环境的调用。",
       "expected": {
         "outcome": "error",
@@ -142,7 +146,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有 OrtStatus 映射，不能导入未发布的 SDK。",
+      "moonbit_coverage": ["src/raw/load_test.mbt: create env failure releases OrtStatus"],
       "trigger": "环境构造失败。",
       "expected": {
         "outcome": "error",
@@ -155,7 +159,7 @@
       "kind": "failure",
       "layer": "ffi",
       "executable_now": false,
-      "blocked_on": "本分支没有部分初始化路径，不能导入未发布的 SDK。",
+      "blocked_on": "当前测试集中没有针对多步部分初始化失败及已创建句柄释放的独立回归断言。",
       "trigger": "多步初始化在中间步骤失败。",
       "expected": {
         "outcome": "error",
