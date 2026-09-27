@@ -1394,27 +1394,130 @@ static int copy_indexed_name(
   return free_alloc(api, allocator, tmp, payload, "AllocatorFree");
 }
 
-static int name_in_session(SessionPayload *payload, int is_output, const char *want, int *found) {
+typedef struct SessionNameEntry {
+  char *name;
+  uint64_t hash;
+} SessionNameEntry;
+
+typedef struct SessionNameIndex {
+  SessionNameEntry *entries;
+  size_t capacity;
+  size_t session_count;
+  size_t next_index;
+  int is_output;
+  int loaded;
+} SessionNameIndex;
+
+static uint64_t session_name_hash(const char *name) {
+  const unsigned char *cursor = (const unsigned char *)name;
+  uint64_t hash = UINT64_C(14695981039346656037);
+  while (*cursor != '\0') {
+    hash ^= *cursor++;
+    hash *= UINT64_C(1099511628211);
+  }
+  return hash;
+}
+
+static SessionNameEntry *find_session_name(SessionNameIndex *index, const char *name, uint64_t hash) {
+  size_t slot;
+  size_t probes;
+  if (index->capacity == 0) {
+    return NULL;
+  }
+  slot = (size_t)(hash & (uint64_t)(index->capacity - 1));
+  for (probes = 0; probes < index->capacity; probes++) {
+    SessionNameEntry *entry = &index->entries[slot];
+    if (entry->name == NULL) {
+      return NULL;
+    }
+    if (entry->hash == hash && strcmp(entry->name, name) == 0) {
+      return entry;
+    }
+    slot = (slot + 1) & (index->capacity - 1);
+  }
+  return NULL;
+}
+
+static int load_session_name_index(SessionPayload *payload, int is_output, SessionNameIndex *index) {
   size_t count = 0;
-  size_t index;
-  *found = 0;
+  size_t capacity = 1;
+  const char *count_api = is_output ? "SessionGetOutputCount" : "SessionGetInputCount";
+  index->loaded = 1;
+  index->is_output = is_output;
   if (run_io_count(payload, is_output, &count) != 0) {
     return -1;
   }
   if (count > 4096) {
-    session_invalid(
-      payload,
-      is_output ? "SessionGetOutputCount" : "SessionGetInputCount",
-      "name count exceeds 4096"
-    );
+    session_invalid(payload, count_api, "name count exceeds 4096");
     return -1;
   }
-  for (index = 0; index < count; index++) {
+  if (count == 0) {
+    return 0;
+  }
+  index->session_count = count;
+  while (capacity < count * 2) {
+    capacity *= 2;
+  }
+  index->entries = calloc(capacity, sizeof(*index->entries));
+  if (index->entries == NULL) {
+    session_invalid(payload, "Run", "out of memory");
+    return -1;
+  }
+  index->capacity = capacity;
+  return 0;
+}
+
+static void clear_session_name_index(SessionNameIndex *index) {
+  size_t i;
+  for (i = 0; i < index->capacity; i++) {
+    free(index->entries[i].name);
+  }
+  free(index->entries);
+  memset(index, 0, sizeof(*index));
+}
+
+static int name_in_session(SessionPayload *payload, SessionNameIndex *index, const char *want, int *found) {
+  uint64_t hash = session_name_hash(want);
+  SessionNameEntry *entry = find_session_name(index, want, hash);
+  *found = 0;
+  if (entry != NULL) {
+    *found = 1;
+    return 0;
+  }
+  while (index->next_index < index->session_count) {
     char buf[1024];
-    if (copy_indexed_name(payload, is_output, index, buf, sizeof(buf)) != 0) {
+    uint64_t name_hash;
+    size_t slot;
+    size_t probes;
+    if (copy_indexed_name(payload, index->is_output, index->next_index, buf, sizeof(buf)) != 0) {
       return -1;
     }
-    if (strcmp(buf, want) == 0) {
+    index->next_index++;
+    name_hash = session_name_hash(buf);
+    slot = (size_t)(name_hash & (uint64_t)(index->capacity - 1));
+    for (probes = 0; probes < index->capacity; probes++) {
+      entry = &index->entries[slot];
+      if (entry->name == NULL) {
+        size_t length = strlen(buf) + 1;
+        entry->name = malloc(length);
+        if (entry->name == NULL) {
+          session_invalid(payload, "Run", "out of memory");
+          return -1;
+        }
+        memcpy(entry->name, buf, length);
+        entry->hash = name_hash;
+        break;
+      }
+      if (entry->hash == name_hash && strcmp(entry->name, buf) == 0) {
+        break;
+      }
+      slot = (slot + 1) & (index->capacity - 1);
+    }
+    if (probes == index->capacity) {
+      session_invalid(payload, "Run", "name index is full");
+      return -1;
+    }
+    if (entry->hash == hash && strcmp(entry->name, want) == 0) {
       *found = 1;
       return 0;
     }
@@ -1449,6 +1552,8 @@ void **moon_ort_session_run(
   const char **output_ptrs = NULL;
   const OrtValue **input_values = NULL;
   void **result = NULL;
+  SessionNameIndex input_name_index = {0};
+  SessionNameIndex output_name_index = {0};
   int32_t name_len;
   int32_t value_len;
   int32_t output_len;
@@ -1517,7 +1622,10 @@ void **moon_ort_session_run(
       session_invalid(payload, "Run", "input name is too long");
       goto cleanup;
     }
-    if (name_in_session(payload, 0, input_ptrs[i], &found) != 0) {
+    if (!input_name_index.loaded && load_session_name_index(payload, 0, &input_name_index) != 0) {
+      goto cleanup;
+    }
+    if (name_in_session(payload, &input_name_index, input_ptrs[i], &found) != 0) {
       goto cleanup;
     }
     if (!found) {
@@ -1526,6 +1634,7 @@ void **moon_ort_session_run(
     }
     input_values[i] = ort_value;
   }
+  clear_session_name_index(&input_name_index);
   for (i = 0; i < output_len; i++) {
     int converted;
     int found = 0;
@@ -1540,7 +1649,10 @@ void **moon_ort_session_run(
       session_invalid(payload, "Run", "output name is too long");
       goto cleanup;
     }
-    if (name_in_session(payload, 1, output_ptrs[i], &found) != 0) {
+    if (!output_name_index.loaded && load_session_name_index(payload, 1, &output_name_index) != 0) {
+      goto cleanup;
+    }
+    if (name_in_session(payload, &output_name_index, output_ptrs[i], &found) != 0) {
       goto cleanup;
     }
     if (!found) {
@@ -1612,6 +1724,8 @@ void **moon_ort_session_run(
     }
   }
 cleanup:
+  clear_session_name_index(&input_name_index);
+  clear_session_name_index(&output_name_index);
   free(input_store);
   free(output_store);
   free(input_ptrs);
