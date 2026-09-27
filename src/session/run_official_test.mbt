@@ -186,6 +186,31 @@ test "official libonnxruntime 1.30.0 matches tracked fixture outputs" {
       close_outputs(add_out)
       add_input.close()
       add.close()
+      let scalar = @session.Session::create(
+        rt, options, "testdata/scalar_identity_f32.onnx",
+      )
+      let scalar_input_values = official_fixture_scalar_identity_f32_input_data()
+      let scalar_input = @tensor.Tensor::from_f32(
+        rt,
+        official_fixture_scalar_identity_f32_input_shape(),
+        scalar_input_values,
+      )
+      let scalar_out = scalar.run(["input"], [scalar_input], ["output"])
+      let scalar_values = scalar_out[0].read_f32()
+      println(
+        "scalar_identity_f32 input=\{format_f32(scalar_input_values)} output=\{format_f32(scalar_values)} reference=\{format_f32(official_fixture_scalar_identity_f32_output_data())}",
+      )
+      assert_shape(
+        scalar_out[0].shape(),
+        official_fixture_scalar_identity_f32_output_shape(),
+      )
+      assert_f32(
+        scalar_values,
+        official_fixture_scalar_identity_f32_output_data(),
+      )
+      close_outputs(scalar_out)
+      scalar_input.close()
+      scalar.close()
       let sum_session = @session.Session::create(
         rt, options, "testdata/two_inputs_i64.onnx",
       )

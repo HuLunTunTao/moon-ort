@@ -6,7 +6,7 @@
 
 当前 MoonBit 回归测试覆盖：
 
-- `src/raw/load_test.mbt`：缺失库、API 版本不匹配、缺少 ORT 符号、环境构造失败及状态清理、环境句柄关闭/关闭后使用。
+- `src/raw/load_test.mbt`：缺失库、API 版本不匹配、缺少 ORT 符号、环境构造失败及状态清理、环境句柄关闭/关闭后使用，以及不依赖 GC 调度的 finalizer callback body 回归。
 - `src/raw/handle_fail_test.mbt`：Session、SessionOptions、Tensor 句柄的重复关闭、关闭后使用和参数校验。
 - `src/raw/run_test.mbt`、`src/session/run_test.mbt`：输入/输出名称、输入数量、缺失输入、类型和 shape 校验，以及失败时资源清理。
 - `src/session/failure_test.mbt`、`src/session/metadata_test.mbt`、`src/session/session_test.mbt`：模型路径、元数据、选项及公开 API 错误行为。

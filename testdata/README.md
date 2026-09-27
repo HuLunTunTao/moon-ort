@@ -1,9 +1,10 @@
 # 微型 ONNX 测试夹具
 
-这些文件由本目录的 `generate_models.py` 自行生成，不含第三方模型权重或数据。测试输入由固定种子
-`20260922` 从脚本里的可精确表示数值池抽出；模型图本身是字面量，不使用随机权重。夹具与仓库
-根目录 `LICENSE` 一样，按 MIT 再分发。`onnx` 与 `onnxruntime` 只作为生成和对照工具，不放进
-SDK 运行时，也不提交它们的安装包。
+这些文件由本目录的 `generate_models.py` 自行生成，不含第三方模型权重或数据。多数测试输入由固定种子
+`20260922` 从脚本里的可精确表示数值池抽出；双输出用例对固定分数列表做确定性 shuffle，scalar
+Identity 用例的输入 `3.25` 则是固定字面量，不由种子抽取。模型图本身也是字面量，不使用随机权重。
+夹具与仓库根目录 `LICENSE` 一样，按 MIT 再分发。`onnx` 与 `onnxruntime` 只作为生成和对照工具，
+不放进 SDK 运行时，也不提交它们的安装包。
 
 | 项目 | 固定值 |
 |---|---|
@@ -20,8 +21,9 @@ SDK 运行时，也不提交它们的安装包。
 | `two_inputs_i64.onnx` | 两个 `i64` 输入 |
 | `two_outputs_f32_bool.onnx` | `f32` 与 `bool` 两个输出 |
 | `dynamic_identity_f32.onnx` | 动态 batch；清单中有 batch 1 和 batch 3 |
+| `scalar_identity_f32.onnx` | rank-0 标量 `f32` 输入与输出的真实推理回归 |
 | `negative/invalid_model.onnx` | 固定的非 protobuf 字节，不是有效模型 |
-| `cases/manifest.json` | 种子抽出的输入、解析参考输出和负例规格 |
+| `cases/manifest.json` | 测试输入、解析参考输出和负例规格；其中 scalar 输入为固定字面量 |
 | `../src/session/official_fixture_data_test.mbt` | 由同一 manifest 生成，供官方 ORT 测试读取输入、shape 与期望输出 |
 
 错类型、错 shape 和缺输入不是额外的模型文件。它们在清单里对上述有效模型提交错误输入。

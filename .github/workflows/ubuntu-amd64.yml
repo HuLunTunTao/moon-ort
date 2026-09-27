@@ -10,6 +10,30 @@ on:
   pull_request:
 
 jobs:
+  python-reference:
+    name: Fixture generation and Python ORT reference
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up fixture-generation Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+
+      - name: Install fixture and reference dependencies
+        run: python -m pip install -r testdata/requirements.txt -r tools/reference/requirements.txt
+
+      - name: Regenerate and verify tracked fixtures
+        run: |
+          set -euo pipefail
+          python testdata/generate_models.py
+          (cd testdata && sha256sum -c SHA256SUMS)
+          git diff --exit-code -- testdata src/session/official_fixture_data_test.mbt
+
+      - name: Verify fixtures against official Python ORT
+        run: python tools/reference/ort_diff.py verify
+
   ubuntu-amd64-native:
     name: Ubuntu amd64 native test
     runs-on: ubuntu-24.04

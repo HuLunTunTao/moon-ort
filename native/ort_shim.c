@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ort_shared.h"
+#include "ort_lifecycle.h"
 
 typedef const OrtApiBase *(*OrtGetApiBaseFn)(void);
 
@@ -135,27 +135,8 @@ moonbit_string_t utf8_to_moonbit(const char *src) {
   return out;
 }
 
-static void release_open_env(EnvPayload *payload) {
-  if (payload->state == MOON_ORT_STATE_OPEN && payload->env != NULL && payload->api != NULL &&
-      payload->api->ReleaseEnv != NULL) {
-    payload->api->ReleaseEnv(payload->env);
-    payload->env = NULL;
-  }
-  payload->state = MOON_ORT_STATE_CLOSED;
-  payload->api = NULL;
-  if (payload->lib != NULL) {
-    dlclose(payload->lib);
-    payload->lib = NULL;
-  }
-}
-
 static void env_finalize(void *self) {
-  EnvPayload *payload = (EnvPayload *)self;
-  if (atomic_load_explicit(&payload->children, memory_order_relaxed) > 0) {
-    fputs("moon-ort: leaking runtime with open handles during finalization\n", stderr);
-    return;
-  }
-  release_open_env(payload);
+  moon_ort_finalize_env_payload((EnvPayload *)self);
 }
 
 void moon_ort_pin_env(EnvPayload *env) {
@@ -434,6 +415,6 @@ int32_t moon_ort_close(EnvPayload *payload) {
     copy_cstr(payload->message, sizeof(payload->message), "runtime has open handles");
     return MOON_ORT_BUSY;
   }
-  release_open_env(payload);
+  moon_ort_release_open_env(payload);
   return MOON_ORT_OK;
 }

@@ -12,6 +12,9 @@ fn compile_fake(name : String) -> String raise Failure {
 extern "C" fn test_env_handles_released(handle : Runtime) -> Int = "moon_ort_test_env_handles_released"
 
 ///|
+extern "C" fn test_finalize_env(handle : Runtime) -> Unit = "moon_ort_test_finalize_env"
+
+///|
 test "missing library returns attempted path" {
   let missing = "/no/such/libonnxruntime-moon-ort.dylib"
   try @raw.Runtime::load(missing) catch {
@@ -130,6 +133,48 @@ test "env close clears the dynamic API table pointer" {
   let rt = @raw.Runtime::load(lib)
   rt.close()
   assert_true(test_env_handles_released(rt) == 1)
+}
+
+///|
+test "env finalizer releases an unpinned runtime" {
+  let lib = compile_fake("fake_env")
+  let rt = @raw.Runtime::load(lib)
+  test_finalize_env(rt)
+  assert_true(test_env_handles_released(rt) == 1)
+  try rt.version() catch {
+    UseAfterClose(api) => inspect(api, content="Runtime::version")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected UseAfterClose")
+  }
+  // A later explicit close must not release the already-finalized runtime again.
+  try rt.close() catch {
+    AlreadyClosed(api) => inspect(api, content="Runtime::close")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected AlreadyClosed")
+  }
+}
+
+///|
+test "env finalizer preserves a runtime with an open child handle" {
+  let lib = compile_fake("fake_session")
+  let rt = @raw.Runtime::load(lib)
+  let options = @raw.SessionOptions::create(rt)
+  // Expected stderr: this test deliberately invokes the callback while the
+  // child handle is open, so the finalizer logs and preserves the runtime.
+  test_finalize_env(rt)
+  assert_true(test_env_handles_released(rt) == 0)
+  inspect(rt.version(), content="fake-session-1.30.0")
+  options.close()
+  test_finalize_env(rt)
+  assert_true(test_env_handles_released(rt) == 1)
+  try rt.version() catch {
+    UseAfterClose(api) => inspect(api, content="Runtime::version")
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected UseAfterClose")
+  }
 }
 
 ///|

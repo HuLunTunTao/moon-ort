@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Generate the self-authored, minimal ONNX fixtures used by moon-ort tests.
 
-The four graphs are fixed literals. SEED only draws test inputs from the
-exact-value pools below, so float32 reference results stay bit-exact.
+The graphs are fixed literals. SEED draws the add, i64, and dynamic-identity
+inputs from the exact-value pools below; the shuffled two-output scores are
+fixed literals, and the scalar identity input is the fixed literal 3.25.
+These choices keep float32 reference results bit-exact.
 Requires onnx==1.17.0. Opset is 13 and IR version is 9. The official
 reference runtime for those inputs is ONNX Runtime 1.30.0, invoked only by
 tools/reference/ort_diff.py. These models contain no third-party weights and
@@ -81,7 +83,8 @@ def build_cases(rng: random.Random) -> dict:
                 "then shuffles the fixed two_outputs scores [-1.5, 0.25], then "
                 "draws dynamic batch 1 and batch 3. If the two i64 vectors are "
                 "equal, right is rotated one step through EXACT_I64 so a doubled "
-                "left input cannot match the expected sum. Pools live in this script."
+                "left input cannot match the expected sum. The scalar Identity "
+                "input 3.25 is a fixed literal, not seed-sampled. Pools live in this script."
             ),
             "license": "MIT",
             "license_note": (
@@ -137,6 +140,12 @@ def build_cases(rng: random.Random) -> dict:
                 "expected": {
                     "output": tensor("float32", [3, 2], [as_f32(v) for v in dynamic_batch3]),
                 },
+            },
+            {
+                "id": "scalar_identity_f32",
+                "model": "scalar_identity_f32.onnx",
+                "inputs": {"input": tensor("float32", [], [3.25])},
+                "expected": {"output": tensor("float32", [], [3.25])},
             },
         ],
         "negative": [
@@ -214,6 +223,12 @@ def write_models():
         "dynamic_identity_f32.onnx",
         [helper.make_tensor_value_info("input", TensorProto.FLOAT, ["batch", 2])],
         [helper.make_tensor_value_info("output", TensorProto.FLOAT, ["batch", 2])],
+        [helper.make_node("Identity", ["input"], ["output"])],
+    )
+    model(
+        "scalar_identity_f32.onnx",
+        [helper.make_tensor_value_info("input", TensorProto.FLOAT, [])],
+        [helper.make_tensor_value_info("output", TensorProto.FLOAT, [])],
         [helper.make_node("Identity", ["input"], ["output"])],
     )
 

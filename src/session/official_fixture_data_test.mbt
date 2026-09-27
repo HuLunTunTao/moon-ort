@@ -120,3 +120,23 @@ fn official_fixture_dynamic_identity_f32_batch3_output_data() -> Array[Float] {
 fn official_fixture_dynamic_identity_f32_batch3_output_shape() -> Array[Int64] {
   [3L, 2L]
 }
+
+///|
+fn official_fixture_scalar_identity_f32_input_data() -> Array[Float] {
+  [3.25]
+}
+
+///|
+fn official_fixture_scalar_identity_f32_input_shape() -> Array[Int64] {
+  []
+}
+
+///|
+fn official_fixture_scalar_identity_f32_output_data() -> Array[Float] {
+  [3.25]
+}
+
+///|
+fn official_fixture_scalar_identity_f32_output_shape() -> Array[Int64] {
+  []
+}

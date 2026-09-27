@@ -22,6 +22,9 @@
     },
     "dynamic_identity_f32_batch3": {
       "output": {"dtype": "float32", "rtol": 0.0, "atol": 0.0}
+    },
+    "scalar_identity_f32": {
+      "output": {"dtype": "float32", "rtol": 0.0, "atol": 0.0}
     }
   }
 }

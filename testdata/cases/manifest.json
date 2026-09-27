@@ -7,7 +7,7 @@
     "opset": 13,
     "ir_version": 9,
     "ort_reference": "1.30.0",
-    "input_sampling": "random.Random(seed) draws add_f32 inputs, then i64 left/right, then shuffles the fixed two_outputs scores [-1.5, 0.25], then draws dynamic batch 1 and batch 3. If the two i64 vectors are equal, right is rotated one step through EXACT_I64 so a doubled left input cannot match the expected sum. Pools live in this script.",
+    "input_sampling": "random.Random(seed) draws add_f32 inputs, then i64 left/right, then shuffles the fixed two_outputs scores [-1.5, 0.25], then draws dynamic batch 1 and batch 3. If the two i64 vectors are equal, right is rotated one step through EXACT_I64 so a doubled left input cannot match the expected sum. The scalar Identity input 3.25 is a fixed literal, not seed-sampled. Pools live in this script.",
     "license": "MIT",
     "license_note": "Self-authored by testdata/generate_models.py. No third-party weights. Redistributed under the repository LICENSE."
   },
@@ -180,6 +180,28 @@
             2.0,
             2.0,
             -1.5
+          ]
+        }
+      }
+    },
+    {
+      "id": "scalar_identity_f32",
+      "model": "scalar_identity_f32.onnx",
+      "inputs": {
+        "input": {
+          "dtype": "float32",
+          "shape": [],
+          "data": [
+            3.25
+          ]
+        }
+      },
+      "expected": {
+        "output": {
+          "dtype": "float32",
+          "shape": [],
+          "data": [
+            3.25
           ]
         }
       }
