@@ -71,6 +71,18 @@ fn assert_shape(
 }
 
 ///|
+fn assert_bytes(actual : Bytes, expected : Bytes) -> Unit raise Failure {
+  if actual.length() != expected.length() {
+    fail("byte length {actual.length()} != {expected.length()}")
+  }
+  for i = 0; i < actual.length(); i = i + 1 {
+    if actual[i] != expected[i] {
+      fail("byte index {i}")
+    }
+  }
+}
+
+///|
 fn expect_invalid(
   action : () -> @tensor.Tensor raise @tensor.TensorError,
   message : String,
@@ -170,6 +182,31 @@ test "fixture f32 i64 and bool values round-trip" {
 }
 
 ///|
+test "fixed byte constructors and copy_bytes preserve owned tensor data" {
+  let rt = @raw.Runtime::load(compile_fake_tensor())
+  let f32 = @tensor.Tensor::from_f32_bytes(
+    rt,
+    [2L],
+    b"\x00\x00\x00\x3f\x00\x00\xc0\xbf",
+  )
+  assert_f32(f32.read_f32(), [0.5, -1.5])
+  let copied = f32.copy_bytes()
+  f32.close()
+  assert_bytes(copied, b"\x00\x00\x00\x3f\x00\x00\xc0\xbf")
+  let i64 = @tensor.Tensor::from_i64_bytes(
+    rt,
+    [2L],
+    b"\x01\x00\x00\x00\x00\x00\x00\x00\xfe\xff\xff\xff\xff\xff\xff\xff",
+  )
+  assert_i64(i64.read_i64(), [1L, -2L])
+  let bools = @tensor.Tensor::from_bool_bytes(rt, [2L], b"\x01\x00")
+  assert_bool(bools.read_bool(), [true, false])
+  i64.close()
+  bools.close()
+  rt.close()
+}
+
+///|
 test "scalar f32 and a zero dimension use the runtime shape" {
   let rt = @raw.Runtime::load(compile_fake_tensor())
   let scalar = @tensor.Tensor::from_f32(rt, [], [0.5])
@@ -240,6 +277,14 @@ test "wrong rank empty shape byte count and dtype are structured errors" {
   expect_invalid(
     () => @tensor.Tensor::from_f32(rt, [1L], one, expected_rank=-1),
     "tensor rank is negative",
+  )
+  expect_invalid(
+    () => @tensor.Tensor::from_f32_bytes(rt, [1L], b"\x00"),
+    "tensor byte count does not match data",
+  )
+  expect_invalid(
+    () => @tensor.Tensor::from_bool_bytes(rt, [1L], b"\x02"),
+    "bool tensor byte is not 0 or 1",
   )
 }
 
