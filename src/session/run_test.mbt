@@ -136,6 +136,28 @@ test "fake run copy benchmark keeps large tensors" {
 }
 
 ///|
+test "failed output type and shape query releases partially written info" {
+  let (rt, session) = open_run(compile_fake("fake_run"), "partial-info.onnx")
+  let input = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])
+  try session.run(["input"], [input], ["output"]) catch {
+    @session.Status(code, message, api) => {
+      inspect(code, content="1")
+      inspect(
+        message,
+        content="fake type and shape failed after writing output",
+      )
+      inspect(api, content="GetTensorTypeAndShape")
+    }
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected GetTensorTypeAndShape failure")
+  }
+  input.close()
+  session.close()
+  rt.close()
+}
+
+///|
 test "run rejects a wrong input or output name" {
   let (rt, session) = open_run(compile_fake("fake_run"), "ok.onnx")
   let input = @tensor.Tensor::from_f32(rt, [2L], [0.5, -1.5])

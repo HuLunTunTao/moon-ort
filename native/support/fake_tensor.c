@@ -203,6 +203,9 @@ static OrtStatus *fake_type_and_shape(const OrtValue *value, OrtTensorTypeAndSha
   }
   info_live++;
   *out = (OrtTensorTypeAndShapeInfo *)info;
+  if (tensor->rank == 1 && tensor->dims[0] == 17) {
+    return make_status(ORT_FAIL, "fake type and shape failed after writing output");
+  }
   return NULL;
 }
 

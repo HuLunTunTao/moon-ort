@@ -289,6 +289,27 @@ test "wrong rank empty shape byte count and dtype are structured errors" {
 }
 
 ///|
+test "failed type and shape query releases a partially written info output" {
+  let rt = @raw.Runtime::load(compile_fake_tensor())
+  try
+    @tensor.Tensor::from_i64(rt, [17L], Array::make(17, 1L), expected_rank=1)
+  catch {
+    @tensor.Status(code, message, api) => {
+      inspect(code, content="1")
+      inspect(
+        message,
+        content="fake type and shape failed after writing output",
+      )
+      inspect(api, content="GetTensorTypeAndShape")
+    }
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("expected GetTensorTypeAndShape failure")
+  }
+  rt.close()
+}
+
+///|
 test "tensor close is once and later use fails" {
   let rt = @raw.Runtime::load(compile_fake_tensor())
   let tensor = @tensor.Tensor::from_i64(rt, [2L], [-5L, -3L], expected_rank=1)
