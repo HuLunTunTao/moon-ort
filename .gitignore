@@ -5,6 +5,14 @@ _build/
 **/.mooncakes/
 **/_build/
 
+# Locally built native libraries and object files
+*.dylib
+*.so
+*.dll
+*.a
+*.o
+*.obj
+
 # Downloaded ML assets and ONNX Runtime distributions
 models/
 assets/downloads/
@@ -26,8 +34,14 @@ third_party/onnxruntime/lib/
 AGENTS.md
 .opencode/
 
+# Local credentials and Python environments/caches
+.env
+*.pem
+*.key
+.venv/
+__pycache__/
+
 # Local editor and operating-system files
 .DS_Store
 .idea/
 .vscode/
-
